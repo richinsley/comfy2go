@@ -187,7 +187,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) {
 					// create an imageuploader property and point to it's associated COMBO property
 					targetProp := n.GetPropertyWithName("image")
 					if targetProp != nil {
-						np := newImageUploadProperty("choose file to upload", targetProp.(*ComboProperty), len(n.Properties)-1)
+						np := newImageUploadProperty("choose file to upload", targetProp.(*ComboProperty), len(n.Properties))
 						n.Properties["choose file to upload"] = *np
 					} else {
 						log.Println("Cannot find \"image\" property")
