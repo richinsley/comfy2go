@@ -99,34 +99,34 @@ func (c *ComfyClient) ClientID() string {
 }
 
 // NewGraphFromJsonReader creates a new graph from the data read from an io.Reader
-func (c *ComfyClient) NewGraphFromJsonReader(r io.Reader) (*graphapi.Graph, error) {
+func (c *ComfyClient) NewGraphFromJsonReader(r io.Reader) (*graphapi.Graph, *[]string, error) {
 	if !c.IsInitialized() {
 		// try to initialize first
 		err := c.Init()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	return graphapi.NewGraphFromJsonReader(r, c.nodeobjects)
 }
 
 // NewGraphFromJsonFile creates a new graph from a JSON file
-func (c *ComfyClient) NewGraphFromJsonFile(path string) (*graphapi.Graph, error) {
+func (c *ComfyClient) NewGraphFromJsonFile(path string) (*graphapi.Graph, *[]string, error) {
 	if !c.IsInitialized() {
 		// try to initialize first
 		err := c.Init()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	return graphapi.NewGraphFromJsonFile(path, c.nodeobjects)
 }
 
 // NewGraphFromPNGReader extracts the workflow from PNG data read from an io.Reader and creates a new graph
-func (c *ComfyClient) NewGraphFromPNGReader(r io.Reader) (*graphapi.Graph, error) {
+func (c *ComfyClient) NewGraphFromPNGReader(r io.Reader) (*graphapi.Graph, *[]string, error) {
 	metadata, err := GetPngMetadata(r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// get the workflow from the PNG metadata
@@ -136,18 +136,18 @@ func (c *ComfyClient) NewGraphFromPNGReader(r io.Reader) (*graphapi.Graph, error
 	}
 	reader := strings.NewReader(workflow)
 
-	graph, err := c.NewGraphFromJsonReader(reader)
+	graph, missing, err := c.NewGraphFromJsonReader(reader)
 	if err != nil {
-		return nil, err
+		return nil, missing, err
 	}
-	return graph, nil
+	return graph, missing, nil
 }
 
 // NewGraphFromPNGReader extracts the workflow from PNG data read from a file and creates a new graph
-func (c *ComfyClient) NewGraphFromPNGFile(path string) (*graphapi.Graph, error) {
+func (c *ComfyClient) NewGraphFromPNGFile(path string) (*graphapi.Graph, *[]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 	return c.NewGraphFromPNGReader(file)

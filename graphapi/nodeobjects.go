@@ -124,7 +124,7 @@ func (noi *NodeObjectInput) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var control_after_randomize_text string = `
+var control_after_generate_text string = `
 [
 	[
 		"fixed",
@@ -137,7 +137,7 @@ var control_after_randomize_text string = `
 
 func (n *NodeObjects) PopulateInputProperties() {
 	var cdata []interface{}
-	json.Unmarshal([]byte(control_after_randomize_text), &cdata)
+	json.Unmarshal([]byte(control_after_generate_text), &cdata)
 	var car interface{} = cdata
 
 	for _, o := range n.Objects {
@@ -159,11 +159,11 @@ func (n *NodeObjects) PopulateInputProperties() {
 
 			// handle seed and noise_seed int controls
 			if (*nprop).Name() == "seed" || (*nprop).Name() == "noise_seed" && (*nprop).TypeString() == "INT" {
-				ns_prop := NewPropertyFromInput("control_after_randomize", (*nprop).Optional(), &car, index)
+				ns_prop := NewPropertyFromInput("control_after_generate", (*nprop).Optional(), &car, index)
 				index++
 				(*ns_prop).SetSerializable(false)
 				o.InputProperties = append(o.InputProperties, ns_prop)
-				o.InputPropertiesByID["control_after_randomize"] = ns_prop
+				o.InputPropertiesByID["control_after_generate"] = ns_prop
 			}
 		}
 
@@ -182,10 +182,10 @@ func (n *NodeObjects) PopulateInputProperties() {
 
 				// handle seed and noise_seed int controls
 				if (*nprop).Name() == "seed" || (*nprop).Name() == "noise_seed" && (*nprop).TypeString() == "INT" {
-					ns_prop := NewPropertyFromInput("control_after_randomize", (*nprop).Optional(), &car, index)
+					ns_prop := NewPropertyFromInput("control_after_generate", (*nprop).Optional(), &car, index)
 					index++
 					o.InputProperties = append(o.InputProperties, ns_prop)
-					o.InputPropertiesByID["control_after_randomize"] = ns_prop
+					o.InputPropertiesByID["control_after_generate"] = ns_prop
 				}
 			}
 		}

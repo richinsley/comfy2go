@@ -2,6 +2,7 @@ package graphapi
 
 import (
 	"fmt"
+	"log"
 )
 
 // GraphNode represents the encapsulation of an individual functionality within a Graph
@@ -66,8 +67,21 @@ func (n *GraphNode) GetPropertyWithName(name string) Property {
 
 func (n *GraphNode) GetPropertesByIndex() []Property {
 	retv := make([]Property, len(n.Properties))
+	lastindex := -1
 	for _, v := range n.Properties {
-		retv[v.Index()] = v
+		targetindex := v.TargetIndex()
+		if targetindex >= 0 {
+			// some properties are added after deserializing and won't have a TargetIndex
+			// Image upload is an example of this
+			lastindex = v.TargetIndex()
+			retv[lastindex] = v
+		} else {
+			if v.TypeString() != "IMAGEUPLOAD" {
+				log.Printf("Property with unknown target index of type %s\n", v.TypeString())
+			}
+			// assume lastindex + 1
+			retv[lastindex+1] = v
+		}
 	}
 	return retv
 }

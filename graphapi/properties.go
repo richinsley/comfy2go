@@ -31,6 +31,7 @@ type Property interface {
 	SetSerializable(bool)
 	AttachSecondaryProperty(p Property)
 	Index() int
+	TargetIndex() int
 
 	UpdateParent(parent Property)
 	ToIntProperty() (*IntProperty, bool)
@@ -129,6 +130,10 @@ func (b *BaseProperty) Index() int {
 	return b.index
 }
 
+func (b *BaseProperty) TargetIndex() int {
+	return b.target_value_index
+}
+
 func (b *BaseProperty) ToIntProperty() (*IntProperty, bool) {
 	if prop, ok := b.parent.(*IntProperty); ok {
 		return prop, true
@@ -181,7 +186,7 @@ type BoolProperty struct {
 
 func newBoolProperty(input_name string, optional bool, data interface{}, index int) *Property {
 	c := &BoolProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 		Default:      false,
 	}
 	c.parent = c
@@ -235,7 +240,7 @@ type IntProperty struct {
 
 func newIntProperty(input_name string, optional bool, data interface{}, index int) *Property {
 	c := &IntProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 		Default:      0,
 		Min:          0,
 		Max:          math.MaxInt64,
@@ -310,7 +315,7 @@ type FloatProperty struct {
 
 func newFloatProperty(input_name string, optional bool, data interface{}, index int) *Property {
 	c := &FloatProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 		Default:      0,
 		Min:          0,
 		Max:          math.MaxFloat64,
@@ -381,7 +386,7 @@ type StringProperty struct {
 
 func newStringProperty(input_name string, optional bool, data interface{}, index int) *Property {
 	c := &StringProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 		Default:      "",
 		Multiline:    false,
 	}
@@ -425,7 +430,7 @@ type ComboProperty struct {
 
 func newComboProperty(input_name string, optional bool, input []interface{}, index int) *Property {
 	c := &ComboProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 	}
 	c.parent = c
 
@@ -485,7 +490,7 @@ type ImageUploadProperty struct {
 
 func newImageUploadProperty(input_name string, target *ComboProperty, index int) *Property {
 	c := &ImageUploadProperty{
-		BaseProperty:   BaseProperty{name: input_name, optional: false, serializable: true, override_property: target.name, index: index},
+		BaseProperty:   BaseProperty{name: input_name, optional: false, serializable: true, override_property: target.name, index: index, target_value_index: -1},
 		TargetProperty: target,
 	}
 	c.parent = c
@@ -521,7 +526,7 @@ type UnknownProperty struct {
 
 func newUnknownProperty(input_name string, optional bool, typename string, index int) *Property {
 	c := &UnknownProperty{
-		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index},
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 		TypeName:     typename,
 	}
 	c.parent = c

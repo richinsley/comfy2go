@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// load the workflow
-	graph, err := c.NewGraphFromJsonFile(workflow)
+	graph, _, err := c.NewGraphFromJsonFile(workflow)
 	if err != nil {
 		log.Println("Error loading graph JSON:", err)
 		os.Exit(1)

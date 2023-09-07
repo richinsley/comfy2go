@@ -2,9 +2,11 @@ package graphapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"os"
+
 	"sort"
 	"strconv"
 )
@@ -110,15 +112,32 @@ func duplicateProperty(prop Property) Property {
 	return nil
 }
 
-func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) {
+func containsString(slice *[]string, target string) bool {
+	for _, item := range *slice {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}
+
+// CreateNodeProperties generates the properties required to allow setting values
+//
+// Parameters:
+//   - node_objects: NodeObjects returned from server
+//
+// Returns:
+//   - A pointer to an array of strings containing any missing nodes in the node_objects
+func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 	// we'll store primitives and process them after all other nodes have
 	// had thier properties created
 	primitives := make([]*GraphNode, 0)
+	var retv *[]string = nil
 	for _, n := range t.Nodes {
 		// random numbers seem to have an additional widget added in widget.js addValueControlWidget @ln 15
 		// when an INT widget is created with either the name "seed" or "noise_seed", the additional
 		// widget is added directly after.
-		// it is a COMBO called "control_after_randomize" with one of:
+		// it is a COMBO called "control_after_generate" with one of:
 		// 	fixed
 		//	increment
 		//	decrement
@@ -204,6 +223,14 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) {
 				continue
 			} else {
 				log.Printf("Could not get node object for %s\n", n.Type)
+				if retv == nil {
+					r := make([]string, 0)
+					retv = &r
+				}
+				if !containsString(retv, n.Type) {
+					r := append(*retv, n.Type)
+					retv = &r
+				}
 			}
 		}
 	}
@@ -250,6 +277,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) {
 			}
 		}
 	}
+	return retv
 }
 
 func (t *Graph) GetLinkById(id int) *Link {
@@ -319,10 +347,10 @@ func (t *Graph) GetNodesWithType(nodeType string) []*GraphNode {
 	return retv
 }
 
-func NewGraphFromJsonReader(r io.Reader, node_objects *NodeObjects) (*Graph, error) {
+func NewGraphFromJsonReader(r io.Reader, node_objects *NodeObjects) (*Graph, *[]string, error) {
 	fileContent, err := io.ReadAll(r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// deserialize workflow into a graph
@@ -330,16 +358,19 @@ func NewGraphFromJsonReader(r io.Reader, node_objects *NodeObjects) (*Graph, err
 	graph := &Graph{}
 	err = json.Unmarshal([]byte(text), &graph)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	graph.CreateNodeProperties(node_objects)
-	return graph, nil
+	missing := graph.CreateNodeProperties(node_objects)
+	if missing != nil && len(*missing) != 0 {
+		err = errors.New("missing node types")
+	}
+	return graph, missing, err
 }
 
-func NewGraphFromJsonFile(path string, node_objects *NodeObjects) (*Graph, error) {
+func NewGraphFromJsonFile(path string, node_objects *NodeObjects) (*Graph, *[]string, error) {
 	freader, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer freader.Close()
 
