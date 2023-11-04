@@ -90,6 +90,7 @@ func (c *ComfyClient) Init() error {
 	}
 
 	c.nodeobjects = object_infos
+	c.initialized = true
 	return nil
 }
 
