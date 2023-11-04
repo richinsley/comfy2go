@@ -69,11 +69,11 @@ func (n *GraphNode) GetPropertesByIndex() []Property {
 	retv := make([]Property, len(n.Properties))
 	lastindex := -1
 	for _, v := range n.Properties {
-		targetindex := v.TargetIndex()
-		if targetindex >= 0 {
-			// some properties are added after deserializing and won't have a TargetIndex
+		index := v.Index()
+		if index >= 0 {
+			// some properties are added after deserializing and won't have a index
 			// Image upload is an example of this
-			lastindex = v.TargetIndex()
+			lastindex = v.Index()
 			retv[lastindex] = v
 		} else {
 			if v.TypeString() != "IMAGEUPLOAD" {

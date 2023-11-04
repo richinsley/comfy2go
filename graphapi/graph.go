@@ -248,6 +248,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 				// we'll use the type and value of primitive_node_output.Links[0].  I'll assume that.
 				// the link IDs are ordered and [0] would be the first on linked
 				var first_property Property
+				pindex := 0
 				for _, l := range *primitive_node_output.Links {
 					primitive_node_output_link := t.GetLinkById(l)
 					if primitive_node_output_link != nil {
@@ -262,17 +263,20 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 								}
 								// copy the property and assign it the node's "value" property
 								np := duplicateProperty(first_property)
+								np.SetIndex(pindex)
 								primitive_node.Properties["value"] = np
 							} else {
 								// copy the property and add the node's "value" property as a secondary
 								p := target_node.Inputs[primitive_node_output_link.TargetSlot].Property
 								if p != nil {
 									newp := duplicateProperty(p)
+									newp.SetIndex(pindex)
 									primitive_node.Properties["value"].AttachSecondaryProperty(newp)
 								}
 							}
 						}
 					}
+					pindex++
 				}
 			}
 		}

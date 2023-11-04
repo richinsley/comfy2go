@@ -31,6 +31,7 @@ type Property interface {
 	SetSerializable(bool)
 	AttachSecondaryProperty(p Property)
 	Index() int
+	SetIndex(index int)
 	TargetIndex() int
 
 	UpdateParent(parent Property)
@@ -128,6 +129,10 @@ func (b *BaseProperty) SetValue(v interface{}) error {
 
 func (b *BaseProperty) Index() int {
 	return b.index
+}
+
+func (b *BaseProperty) SetIndex(index int) {
+	b.index = index
 }
 
 func (b *BaseProperty) TargetIndex() int {
