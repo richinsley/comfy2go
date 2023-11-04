@@ -78,10 +78,10 @@ func main() {
 	// node and exposes it's first (and only it's first) property, with the title of the node as the key
 	// in the Properties field.
 	simple_api := graph.GetSimpleAPI()
-	width, _ := simple_api.Properties["Width"].ToFloatProperty()
-	height, _ := simple_api.Properties["Height"].ToFloatProperty()
-	positive, _ := simple_api.Properties["Positive"].ToStringProperty()
-	negative, _ := simple_api.Properties["Negative"].ToStringProperty()
+	width := simple_api.Properties["Width"]
+	height := simple_api.Properties["Height"]
+	positive := simple_api.Properties["Positive"]
+	negative := simple_api.Properties["Negative"]
 	width.SetValue(1024)
 	height.SetValue(1024)
 	positive.SetValue("a dive bar, dimly lit, zombies, dancing, mosh pit, (kittens:1.5)")
