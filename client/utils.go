@@ -15,7 +15,7 @@ func GetPngMetadata(r io.Reader) (map[string]string, error) {
 	}
 
 	if !bytes.Equal(header, []byte{137, 80, 78, 71, 13, 10, 26, 10}) {
-		return nil, errors.New("Not a valid PNG file")
+		return nil, errors.New("not a valid PNG file")
 	}
 
 	txtChunks := make(map[string]string)
@@ -45,7 +45,7 @@ func GetPngMetadata(r io.Reader) (map[string]string, error) {
 
 			keywordEnd := bytes.IndexByte(chunkData, 0)
 			if keywordEnd == -1 {
-				return nil, errors.New("Malformed tEXt chunk")
+				return nil, errors.New("malformed tEXt chunk")
 			}
 
 			keyword := string(chunkData[:keywordEnd])
