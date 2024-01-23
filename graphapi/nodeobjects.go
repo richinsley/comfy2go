@@ -13,7 +13,7 @@ type NodeObjects struct {
 // NodeObject represents the metadata that describes how to generate an instance of a node for a graph.
 type NodeObject struct {
 	Input               *NodeObjectInput     `json:"input"`
-	Output              *[]string            `json:"output"` // output type
+	Output              *[]interface{}       `json:"output"` // output type
 	OutputIsList        *[]bool              `json:"output_is_list"`
 	OutputName          *[]string            `json:"output_name"`
 	Name                string               `json:"name"`
