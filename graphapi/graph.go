@@ -9,6 +9,7 @@ import (
 
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // allow us to order nodes by thier execution order (ordinality)
@@ -379,6 +380,12 @@ func NewGraphFromJsonFile(path string, node_objects *NodeObjects) (*Graph, *[]st
 	defer freader.Close()
 
 	return NewGraphFromJsonReader(freader, node_objects)
+}
+
+func NewGraphFromJsonString(data string, node_objects *NodeObjects) (*Graph, *[]string, error) {
+	// Convert the string to an io.Reader
+	reader := strings.NewReader(data)
+	return NewGraphFromJsonReader(reader, node_objects)
 }
 
 func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {

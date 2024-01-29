@@ -580,13 +580,22 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 					return newFloatProperty(input_name, optional, slice[1], index)
 				case "BOOLEAN":
 					return newBoolProperty(input_name, optional, stype, index)
+				case "IMAGE":
+					return newUnknownProperty(input_name, optional, stype, index)
+				case "MASK:":
+					return newUnknownProperty(input_name, optional, stype, index)
 				default:
 					return newUnknownProperty(input_name, optional, stype, index)
 				}
 			}
 		}
 		log.Println("Success:", slice)
+	} else if s, ok := dereferenced.(string); ok {
+		// Edge case for an "Any" input property
+		if s == "*" {
+			// "Any"
+			return newUnknownProperty(input_name, optional, "*", index)
+		}
 	}
-
 	return nil
 }

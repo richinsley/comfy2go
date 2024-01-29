@@ -123,6 +123,18 @@ func (c *ComfyClient) NewGraphFromJsonFile(path string) (*graphapi.Graph, *[]str
 	return graphapi.NewGraphFromJsonFile(path, c.nodeobjects)
 }
 
+// NewGraphFromJsonString creates a new graph from a JSON string
+func (c *ComfyClient) NewGraphFromJsonString(path string) (*graphapi.Graph, *[]string, error) {
+	if !c.IsInitialized() {
+		// try to initialize first
+		err := c.Init()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return graphapi.NewGraphFromJsonString(path, c.nodeobjects)
+}
+
 // NewGraphFromPNGReader extracts the workflow from PNG data read from an io.Reader and creates a new graph
 func (c *ComfyClient) NewGraphFromPNGReader(r io.Reader) (*graphapi.Graph, *[]string, error) {
 	metadata, err := GetPngMetadata(r)
