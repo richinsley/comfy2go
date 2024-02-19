@@ -13,8 +13,15 @@ func getImageUploader(props []Property) Property {
 	return nil
 }
 
-func (t *Graph) GetSimpleAPI() *SimpleAPI {
-	group := t.GetGroupWithTitle("API")
+// GetSimpleAPI returns an instance of SimpleAPI
+// SimpleAPI is a collection of nodes in the graph that are contained within a group with the given title.
+// When title is nil, the default "API" group will be used
+func (t *Graph) GetSimpleAPI(title *string) *SimpleAPI {
+	if title == nil {
+		defaultAPI := "API"
+		title = &defaultAPI
+	}
+	group := t.GetGroupWithTitle(*title)
 	retv := &SimpleAPI{
 		Properties: make(map[string]Property),
 	}

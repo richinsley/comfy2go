@@ -77,7 +77,7 @@ func main() {
 	// Get the nodes that are within the "API" Group.  GetSimpleAPI takes each
 	// node and exposes it's first (and only it's first) property, with the title of the node as the key
 	// in the Properties field.
-	simple_api := graph.GetSimpleAPI()
+	simple_api := graph.GetSimpleAPI(nil)
 	width := simple_api.Properties["Width"]
 	height := simple_api.Properties["Height"]
 	positive := simple_api.Properties["Positive"]
