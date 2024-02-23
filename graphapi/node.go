@@ -1,7 +1,6 @@
 package graphapi
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -16,17 +15,60 @@ type GraphNode struct {
 	Mode               int                     `json:"mode"`
 	Title              string                  `json:"title"`
 	InternalProperties *map[string]interface{} `json:"properties"` // node properties, not value properties!
-	WidgetValues       []interface{}           `json:"widgets_values"`
-	Color              string                  `json:"color"`
-	BGColor            string                  `json:"bgcolor"`
-	Inputs             []Slot                  `json:"inputs,omitempty"`
-	Outputs            []Slot                  `json:"outputs,omitempty"`
-	Graph              *Graph                  `json:"-"`
-	CustomData         *interface{}            `json:"-"`
-	Widgets            []*Widget               `json:"-"`
-	Properties         map[string]Property     `json:"-"`
-	DisplayName        string                  `json:"-"`
-	Description        string                  `json:"-"`
+	// widgets_values can be an array of values, or a map of values
+	// maps of values can represent cascading style properties in which the setting
+	// of one property makes certain other properties available
+	WidgetValues interface{}         `json:"widgets_values"`
+	Color        string              `json:"color"`
+	BGColor      string              `json:"bgcolor"`
+	Inputs       []Slot              `json:"inputs,omitempty"`
+	Outputs      []Slot              `json:"outputs,omitempty"`
+	Graph        *Graph              `json:"-"`
+	CustomData   *interface{}        `json:"-"`
+	Widgets      []*Widget           `json:"-"`
+	Properties   map[string]Property `json:"-"`
+	DisplayName  string              `json:"-"`
+	Description  string              `json:"-"`
+}
+
+func (n *GraphNode) WidgetValuesArray() []interface{} {
+	if n.WidgetValues == nil {
+		return nil
+	}
+	retv, ok := n.WidgetValues.([]interface{})
+	if ok {
+		return retv
+	}
+	return nil
+}
+
+func (n *GraphNode) WidgetValuesMap() map[string]interface{} {
+	if n.WidgetValues == nil {
+		return nil
+	}
+	retv, ok := n.WidgetValues.(map[string]interface{})
+	if ok {
+		return retv
+	}
+	return nil
+}
+
+func (n *GraphNode) IsWidgetValueArray() bool {
+	return n.WidgetValuesArray() != nil
+}
+
+func (n *GraphNode) IsWidgetValueMap() bool {
+	return n.WidgetValuesMap() != nil
+}
+
+func (n *GraphNode) WidgetValueCount() int {
+	if n.IsWidgetValueArray() {
+		return len(n.WidgetValuesArray())
+	}
+	if n.IsWidgetValueMap() {
+		return len(n.WidgetValuesMap())
+	}
+	return 0
 }
 
 func (n *GraphNode) IsVirtual() bool {
@@ -145,8 +187,9 @@ func (n *GraphNode) ApplyToGraph() {
 		if widgetName != nil {
 			// Nodes need a distinct Widget class
 			// widget.value = this.widgets[0].value;
-			fmt.Print()
+			// fmt.Print()
 		}
+
 		/*
 			widgetName := input.Widget.
 			const widgetName = input.widget.name;

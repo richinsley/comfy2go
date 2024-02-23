@@ -129,16 +129,16 @@ type WSMessageDataProgress struct {
 */
 
 type WSMessageDataExecuted struct {
-	Node     int                            `json:"node"`
-	Output   map[string]*[]DataOutputImages `json:"output"` // there may be other types of output besides "images" (hopefully text and latent images)
-	PromptID string                         `json:"prompt_id"`
+	Node     int                      `json:"node"`
+	Output   map[string]*[]DataOutput `json:"output"` // there may be other types of output besides "images" (hopefully text and latent images)
+	PromptID string                   `json:"prompt_id"`
 }
 
 func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 	var temp struct {
-		Node     string                         `json:"node"`
-		Output   map[string]*[]DataOutputImages `json:"output"`
-		PromptID string                         `json:"prompt_id"`
+		Node     string                   `json:"node"`
+		Output   map[string]*[]DataOutput `json:"output"`
+		PromptID string                   `json:"prompt_id"`
 	}
 	if err := json.Unmarshal(b, &temp); err != nil {
 		return err

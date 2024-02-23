@@ -7,6 +7,10 @@ type Group struct {
 }
 
 func (r *Group) IntersectsOrContains(node *GraphNode) bool {
+	if len(r.Bounding) != 4 {
+		return false
+	}
+
 	// the geometry is stored differently for nodes and groups
 	rx := float64(r.Bounding[0])
 	ry := float64(r.Bounding[1])

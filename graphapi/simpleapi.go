@@ -22,6 +22,9 @@ func (t *Graph) GetSimpleAPI(title *string) *SimpleAPI {
 		title = &defaultAPI
 	}
 	group := t.GetGroupWithTitle(*title)
+	if group == nil {
+		return nil
+	}
 	retv := &SimpleAPI{
 		Properties: make(map[string]Property),
 	}

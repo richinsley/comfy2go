@@ -16,6 +16,7 @@ import (
 // "COMBO"			one of a given list of strings
 // "BOOLEAN"		a labeled bool value
 // "IMAGEUPLOAD"	image uploader
+// "CASCADE"		collection cascading style properties
 // "UNKNOWN"		everything else (unsettable)
 type Property interface {
 	TypeString() string
@@ -40,6 +41,7 @@ type Property interface {
 	ToBoolProperty() (*BoolProperty, bool)
 	ToStringProperty() (*StringProperty, bool)
 	ToComboProperty() (*ComboProperty, bool)
+	ToCascadeProperty() (*CascadingProperty, bool)
 	ToImageUploadProperty() (*ImageUploadProperty, bool)
 	ToUnknownProperty() (*UnknownProperty, bool)
 	valueFromString(value string) interface{}
@@ -95,7 +97,11 @@ func (b *BaseProperty) GetValue() interface{} {
 	}
 
 	if b.target_node != nil {
-		return b.target_node.WidgetValues[b.target_value_index]
+		if b.target_node.IsWidgetValueArray() {
+			return b.target_node.WidgetValuesArray()[b.target_value_index]
+		} else {
+			return b.target_node.WidgetValuesMap()[b.name]
+		}
 	}
 	return nil
 }
@@ -110,9 +116,13 @@ func (b *BaseProperty) SetValue(v interface{}) error {
 		return errors.New("could not get converted type")
 	}
 	if b.target_node != nil {
-		b.target_node.WidgetValues[b.target_value_index] = val
+		if b.target_node.IsWidgetValueArray() {
+			b.target_node.WidgetValuesArray()[b.target_value_index] = val
+		} else {
+			b.target_node.WidgetValuesMap()[b.name] = val
+		}
 	} else {
-		return errors.New("Property has no target node")
+		return errors.New("property has no target node")
 	}
 
 	// if there are secondaries, set those too
@@ -165,6 +175,12 @@ func (b *BaseProperty) ToStringProperty() (*StringProperty, bool) {
 }
 func (b *BaseProperty) ToComboProperty() (*ComboProperty, bool) {
 	if prop, ok := b.parent.(*ComboProperty); ok {
+		return prop, true
+	}
+	return nil, false
+}
+func (b *BaseProperty) ToCascadeProperty() (*CascadingProperty, bool) {
+	if prop, ok := b.parent.(*CascadingProperty); ok {
 		return prop, true
 	}
 	return nil, false
@@ -428,6 +444,139 @@ func (p *StringProperty) valueFromString(value string) interface{} {
 	return value
 }
 
+func isCascadingProperty(input []interface{}) bool {
+	for _, v := range input {
+		if _, ok := v.([]interface{}); ok {
+			return true
+		}
+	}
+	return false
+}
+
+type CasdcadeEntry struct {
+	Name     string
+	Property *Property
+}
+
+type CascadeGroup struct {
+	Name    string
+	Entries []CasdcadeEntry
+}
+
+func (c *CascadeGroup) Properties() []Property {
+	retv := make([]Property, 0)
+	for _, e := range c.Entries {
+		retv = append(retv, *e.Property)
+	}
+	return retv
+}
+
+type CascadingProperty struct {
+	BaseProperty
+	Groups         []CascadeGroup
+	SelectionIndex string
+}
+
+func newCascadeProperty(input_name string, optional bool, input []interface{}, index int) *Property {
+	c := &CascadingProperty{
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
+		Groups:       make([]CascadeGroup, 0),
+	}
+	c.parent = c
+
+	for _, v := range input {
+		if s, ok := v.(string); ok {
+			// an empty cascade entry
+			group := CascadeGroup{
+				Name:    s,
+				Entries: make([]CasdcadeEntry, 0),
+			}
+			c.Groups = append(c.Groups, group)
+		} else {
+			if e, ok := v.([]interface{}); ok {
+				// the first value should be the name of the property group
+				// the second value should be a slice of properties
+				if len(e) == 2 {
+					if cascadegroupname, ok := e[0].(string); ok {
+						group := CascadeGroup{
+							Name:    cascadegroupname,
+							Entries: make([]CasdcadeEntry, 0),
+						}
+						if propgroups, ok := e[1].([]interface{}); ok {
+							// create the properties
+							// propgroups is a slice of property groups
+							// each property group within propgroups is headed with the name of the entry follwed by the properties
+
+							fmt.Println(propgroups)
+							for _, pp := range propgroups {
+								if propgroups, ok := pp.([]interface{}); ok {
+									if len(propgroups) >= 2 {
+										if propname, ok := propgroups[0].(string); ok {
+											// convert the rest of the slice to []interface{}
+											nparams := propgroups[1:]
+											var paramAsInterface interface{} = nparams
+											newprop := NewPropertyFromInput(propname, false, &paramAsInterface, index)
+											group.Entries = append(group.Entries, CasdcadeEntry{Name: propname, Property: newprop})
+										} else {
+											log.Println("TODO - Potential non-string property name")
+										}
+									} else {
+										log.Println("TODO - Potential non-slice property group")
+									}
+								} else {
+									log.Println("TODO - Potential non-slice property group")
+								}
+							}
+						}
+						c.Groups = append(c.Groups, group)
+					}
+				}
+			}
+		}
+	}
+	var retv Property = c
+	return &retv
+}
+
+func (p *CascadingProperty) TypeString() string {
+	return "CASCADE"
+}
+
+func (p *CascadingProperty) Optional() bool {
+	return p.optional
+}
+
+func (p *CascadingProperty) Settable() bool {
+	// this would not be feasible in this architecture
+	return true
+}
+
+func (p *CascadingProperty) Name() string {
+	return p.name
+}
+
+func (p *CascadingProperty) valueFromString(value string) interface{} {
+	// we can't set a cascading property directly
+	return nil
+}
+
+func (p *CascadingProperty) GroupNames() []string {
+	retv := make([]string, 0)
+	for _, g := range p.Groups {
+		retv = append(retv, g.Name)
+	}
+	return retv
+}
+
+func (p *CascadingProperty) GetGroupByName(name string) *CascadeGroup {
+	for i := range p.Groups {
+		if p.Groups[i].Name == name {
+			return &p.Groups[i]
+		}
+	}
+	return nil
+}
+
 type ComboProperty struct {
 	BaseProperty
 	Values []string
@@ -443,23 +592,31 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 	for _, v := range input {
 		if s, ok := v.(string); ok {
 			c.Values = append(c.Values, s)
+		} else {
+			log.Println("TODO - Potential non-string combo entry")
 		}
 	}
 	var retv Property = c
+
 	return &retv
 }
+
 func (p *ComboProperty) TypeString() string {
 	return "COMBO"
 }
+
 func (p *ComboProperty) Optional() bool {
 	return p.optional
 }
+
 func (p *ComboProperty) Settable() bool {
 	return true
 }
+
 func (p *ComboProperty) Name() string {
 	return p.name
 }
+
 func (p *ComboProperty) valueFromString(value string) interface{} {
 	// ensure we have this string in our values
 	for _, v := range p.Values {
@@ -568,7 +725,11 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 
 		// the first item is either an array of strings (a combo), or the property type
 		if ptype, ok := slice[0].([]interface{}); ok {
-			return newComboProperty(input_name, optional, ptype, index)
+			if !isCascadingProperty(ptype) {
+				return newComboProperty(input_name, optional, ptype, index)
+			} else {
+				return newCascadeProperty(input_name, optional, ptype, index)
+			}
 		} else {
 			if stype, ok := slice[0].(string); ok {
 				switch stype {

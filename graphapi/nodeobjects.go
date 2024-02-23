@@ -54,6 +54,7 @@ type NodeObjectInput struct {
 	OrderedOptional []string                `json:"-"`
 }
 
+// NodeObjectInput custom UnmarshalJSON deserializtion maintains the order of the properties in the JSON
 func (noi *NodeObjectInput) UnmarshalJSON(b []byte) error {
 	dec := json.NewDecoder(strings.NewReader(string(b)))
 	dec.UseNumber()
@@ -111,7 +112,8 @@ func (noi *NodeObjectInput) UnmarshalJSON(b []byte) error {
 				noi.OrderedOptional = currentOrder
 			}
 		default:
-			if err := dec.Decode(new(interface{})); err != nil { // consume and ignore non-expected field
+			// consume and ignore non-expected field (typically 'hidden' fields)
+			if err := dec.Decode(new(interface{})); err != nil {
 				return err
 			}
 		}

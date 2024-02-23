@@ -135,6 +135,8 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 	primitives := make([]*GraphNode, 0)
 	var retv *[]string = nil
 	for _, n := range t.Nodes {
+		pindex := 0
+
 		// random numbers seem to have an additional widget added in widget.js addValueControlWidget @ln 15
 		// when an INT widget is created with either the name "seed" or "noise_seed", the additional
 		// widget is added directly after.
@@ -153,52 +155,12 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 			n.DisplayName = nobject.DisplayName
 			n.Description = nobject.Description
 
+			// get the settable properties and associate them with correct widgets
 			props := nobject.GetSettableProperties()
-			for pindex, prop := range props {
-				// convert to actual property type, deep copy
-				// store a pointer to the property in the node's
-				// correct Input
-				switch prop.TypeString() {
-				case "STRING":
-					np := *prop.(*StringProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				case "FLOAT":
-					np := *prop.(*FloatProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				case "COMBO":
-					np := *prop.(*ComboProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				case "INT":
-					np := *prop.(*IntProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				case "BOOLEAN":
-					np := *prop.(*BoolProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				case "UNKNOWN":
-					log.Println("UNKNOWN property type in settable field")
-					np := *prop.(*UnknownProperty)
-					np.UpdateParent(&np)
-					np.SetTargetWidget(n, pindex)
-					n.Properties[prop.Name()] = &np
-					n.affixPropertyToInputSlot(prop.Name(), &np)
-				}
-			}
-			if len(n.WidgetValues) != len(props) {
+			t.ProcessSettableProperties(n, &props, &pindex)
+
+			// check if the number of properties is the same as the number of widget values
+			if n.WidgetValueCount() != len(props) {
 				// If the count of WidgetValues is not the same as props there may be potential issues
 				// which may arrise here if not handled properly.  An example is LoadImage and LoadImageMask where
 				// there is a widget "choose file to upload" whose field points to the
@@ -283,6 +245,92 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 		}
 	}
 	return retv
+}
+
+func (t *Graph) ProcessSettableProperties(n *GraphNode, props *[]Property, pindex *int) {
+	for _, prop := range *props {
+		// convert to actual property type, deep copy
+		// store a pointer to the property in the node's
+		// correct Input
+		switch prop.TypeString() {
+		case "STRING":
+			np := *prop.(*StringProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		case "FLOAT":
+			np := *prop.(*FloatProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		case "COMBO":
+			np := *prop.(*ComboProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		case "INT":
+			np := *prop.(*IntProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		case "BOOLEAN":
+			np := *prop.(*BoolProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		case "CASCADE":
+			// find the widget in the target node
+			wmap := n.WidgetValuesMap()
+			// get the widget value
+			wv, ok := wmap[prop.Name()]
+			if !ok {
+				log.Printf("Cannot find widget value for %s\n", prop.Name())
+				continue
+			}
+			// get the widget's string value
+			wvstr, ok := wv.(string)
+			if !ok {
+				log.Printf("Cannot convert widget value to string for %s\n", prop.Name())
+				continue
+			}
+
+			// get the cascade group with the same name as the widget value
+			cg := prop.(*CascadingProperty).GetGroupByName(wvstr)
+			if cg == nil {
+				log.Printf("Cannot find cascade group for %s\n", wvstr)
+				continue
+			}
+			groupproperties := cg.Properties()
+
+			np := *prop.(*CascadingProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+
+			// now append the cascade group's properties
+			t.ProcessSettableProperties(n, &groupproperties, pindex)
+		case "UNKNOWN":
+			log.Println("UNKNOWN property type in settable field")
+			np := *prop.(*UnknownProperty)
+			np.UpdateParent(&np)
+			np.SetTargetWidget(n, *pindex)
+			*pindex++
+			n.Properties[prop.Name()] = &np
+			n.affixPropertyToInputSlot(prop.Name(), &np)
+		}
+	}
 }
 
 func (t *Graph) GetLinkById(id int) *Link {
@@ -388,6 +436,31 @@ func NewGraphFromJsonString(data string, node_objects *NodeObjects) (*Graph, *[]
 	return NewGraphFromJsonReader(reader, node_objects)
 }
 
+func (t *Graph) GraphToJSON() (string, error) {
+	data, err := json.Marshal(t)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (t *Graph) SaveGraphToFile(path string) error {
+	data, err := t.GraphToJSON()
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 	p := Prompt{
 		ClientID: clientID,
@@ -413,9 +486,9 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 		}
 
 		// populate the node input values
-		for k, p := range node.Properties {
-			if p.Serializable() {
-				pn.Inputs[k] = p.GetValue()
+		for k, prop := range node.Properties {
+			if prop.Serializable() {
+				pn.Inputs[k] = prop.GetValue()
 			}
 		}
 

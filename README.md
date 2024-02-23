@@ -98,22 +98,27 @@ func main() {
 			continueLoop = false
 		case "data":
 			qm := msg.ToPromptMessageData()
-			for _, v := range qm.Images {
-				// retrieve the image from ComfyUI
-				img_data, err := c.GetImage(v)
-				if err != nil {
-					log.Println("Failed to get image:", err)
-					os.Exit(1)
+			// data objects have the fields: Filename, Subfolder, Type
+			// * Subfolder is the subfolder in the output directory
+			// * Type is the type of the image temp/
+			for k, v := range qm.Data {
+				if k == "images" || k == "gifs" {
+					for _, output := range v {
+						img_data, err := c.GetImage(output)
+						if err != nil {
+							log.Println("Failed to get image:", err)
+							os.Exit(1)
+						}
+						f, err := os.Create(output.Filename)
+						if err != nil {
+							log.Println("Failed to write image:", err)
+							os.Exit(1)
+						}
+						f.Write(*img_data)
+						f.Close()
+						log.Println("Got image: ", output.Filename)
+					}
 				}
-				// write out the png to a file
-				f, err := os.Create(v.Filename)
-				if err != nil {
-					log.Println("Failed to write image:", err)
-					os.Exit(1)
-				}
-				defer f.Close()
-				f.Write(*img_data)
-				log.Println("Got image: ", v.Filename)
 			}
 		}
 	}

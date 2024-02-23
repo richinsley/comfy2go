@@ -48,7 +48,7 @@ func (p *PromptMessage) ToPromptMessageProgress() *PromptMessageProgress {
 
 type PromptMessageData struct {
 	NodeID int
-	Images []DataOutputImages
+	Data   map[string][]DataOutput
 }
 
 func (p *PromptMessage) ToPromptMessageData() *PromptMessageData {

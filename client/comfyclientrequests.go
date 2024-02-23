@@ -85,7 +85,7 @@ func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, erro
 	// We're going to have to make an adapter that reconstructs an actual prompt
 	// from the mangled data
 	type internalOutputs struct {
-		Images *[]DataOutputImages `json:"images"`
+		Images *[]DataOutput `json:"images"`
 	}
 	type internalPromptHistoryItem struct {
 		// The prompt is stored as an array layed out like this:
@@ -132,7 +132,7 @@ func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, erro
 			PromptID: k,
 			Index:    index,
 			Graph:    graph,
-			Outputs:  make(map[int][]DataOutputImages),
+			Outputs:  make(map[int][]DataOutput),
 		}
 
 		// rebuild the images output map
@@ -171,7 +171,7 @@ func (c *ComfyClient) GetViewMetadata(folder string, file string) (string, error
 }
 
 // GetImage
-func (c *ComfyClient) GetImage(image_data DataOutputImages) (*[]byte, error) {
+func (c *ComfyClient) GetImage(image_data DataOutput) (*[]byte, error) {
 	params := url.Values{}
 	params.Add("filename", image_data.Filename)
 	params.Add("subfolder", image_data.Subfolder)

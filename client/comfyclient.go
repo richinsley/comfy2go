@@ -261,10 +261,21 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		s := message.Data.(*WSMessageDataExecuted)
 		qi := c.GetQueuedItem(s.PromptID)
 		if qi != nil {
+			// mdata := &PromptMessageData{
+			// 	NodeID: s.Node,
+			// 	Images: *s.Output["images"],
+			// }
+
+			// collect the data from the output
 			mdata := &PromptMessageData{
 				NodeID: s.Node,
-				Images: *s.Output["images"],
+				Data:   make(map[string][]DataOutput),
 			}
+
+			for k, v := range s.Output {
+				mdata.Data[k] = *v
+			}
+
 			m := PromptMessage{
 				Type:    "data",
 				Message: mdata,
@@ -323,6 +334,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		}
 	default:
 		// Handle unknown data types or return a dedicated error here
-		// sm.Data = nil
+		log.Printf("unhandled message type: %s\n", message.Type)
 	}
 }

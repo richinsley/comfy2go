@@ -4,7 +4,7 @@ import "github.com/richinsley/comfy2go/graphapi"
 
 // There may be other DataOutput types.  We defeinitely need a text type
 
-type DataOutputImages struct {
+type DataOutput struct {
 	Filename  string `json:"filename"`
 	Subfolder string `json:"subfolder"`
 	Type      string `json:"type"`
@@ -41,7 +41,7 @@ type PromptHistoryItem struct {
 	PromptID string
 	Index    int
 	Graph    *graphapi.Graph
-	Outputs  map[int][]DataOutputImages
+	Outputs  map[int][]DataOutput
 }
 
 type PromptError struct {
