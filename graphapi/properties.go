@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 	"strconv"
+	"strings"
 )
 
 // Property is a node's input that can be a settable value
@@ -506,8 +508,6 @@ func newCascadeProperty(input_name string, optional bool, input []interface{}, i
 							// create the properties
 							// propgroups is a slice of property groups
 							// each property group within propgroups is headed with the name of the entry follwed by the properties
-
-							fmt.Println(propgroups)
 							for _, pp := range propgroups {
 								if propgroups, ok := pp.([]interface{}); ok {
 									if len(propgroups) >= 2 {
@@ -580,6 +580,7 @@ func (p *CascadingProperty) GetGroupByName(name string) *CascadeGroup {
 type ComboProperty struct {
 	BaseProperty
 	Values []string
+	IsBool bool
 }
 
 func newComboProperty(input_name string, optional bool, input []interface{}, index int) *Property {
@@ -592,8 +593,16 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 	for _, v := range input {
 		if s, ok := v.(string); ok {
 			c.Values = append(c.Values, s)
+		} else if b, ok := v.(bool); ok {
+			// combo is a bool
+			c.IsBool = true
+			if b {
+				c.Values = append(c.Values, "true")
+			} else {
+				c.Values = append(c.Values, "false")
+			}
 		} else {
-			log.Println("TODO - Potential non-string combo entry")
+			log.Printf("TODO - Potential non-string combo entry <%s>\n", reflect.TypeOf(v).Name())
 		}
 	}
 	var retv Property = c
@@ -618,6 +627,15 @@ func (p *ComboProperty) Name() string {
 }
 
 func (p *ComboProperty) valueFromString(value string) interface{} {
+	if p.IsBool {
+		tl := strings.ToLower(value)
+		if tl == "true" {
+			return true
+		} else {
+			return false
+		}
+	}
+
 	// ensure we have this string in our values
 	for _, v := range p.Values {
 		if value == v {
@@ -630,6 +648,10 @@ func (p *ComboProperty) valueFromString(value string) interface{} {
 // Append will add the new value to the combo if it's not already available, and then sets
 // the target property to the given value
 func (p *ComboProperty) Append(newValue string) {
+	if p.IsBool {
+		return
+	}
+
 	// do we already have this one?
 	have := false
 	for i := range p.Values {
