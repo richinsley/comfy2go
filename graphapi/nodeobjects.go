@@ -15,7 +15,7 @@ type NodeObject struct {
 	Input               *NodeObjectInput     `json:"input"`
 	Output              *[]interface{}       `json:"output"` // output type
 	OutputIsList        *[]bool              `json:"output_is_list"`
-	OutputName          *[]string            `json:"output_name"`
+	OutputName          interface{}          `json:"output_name"`
 	Name                string               `json:"name"`
 	DisplayName         string               `json:"display_name"`
 	Description         string               `json:"description"`

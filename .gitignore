@@ -30,3 +30,6 @@ TODO.md
 examples/.DS_Store
 examples/img2img/*.png
 jsontest
+
+### jetbrain goland
+.idea
