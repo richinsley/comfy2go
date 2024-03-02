@@ -6,8 +6,10 @@ type SimpleAPI struct {
 
 func getImageUploader(props []Property) Property {
 	for _, p := range props {
-		if p.TypeString() == "IMAGEUPLOAD" {
-			return p
+		if p != nil {
+			if p.TypeString() == "IMAGEUPLOAD" {
+				return p
+			}
 		}
 	}
 	return nil
@@ -30,7 +32,7 @@ func (t *Graph) GetSimpleAPI(title *string) *SimpleAPI {
 	}
 	nodes := t.GetNodesInGroup(group)
 	for _, n := range nodes {
-		props := n.GetPropertesByIndex()
+		props := n.GetPropertiesByIndex()
 		if len(props) > 0 {
 			// if a node has an image uploader property, we want that one
 			uploader := getImageUploader(props)

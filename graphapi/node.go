@@ -107,22 +107,38 @@ func (n *GraphNode) GetPropertyWithName(name string) Property {
 	return nil
 }
 
-func (n *GraphNode) GetPropertesByIndex() []Property {
-	retv := make([]Property, len(n.Properties))
+// GetPropertesByIndex returns a slice of Properties ordered by thier order in the node desciption
+// Because a properties index is for it's index in the node description, and not the index of the property in the node's properties,
+// non-indexed properties will be nil in the returned slice
+func (n *GraphNode) GetPropertiesByIndex() []Property {
+	// Initialize with zero length but with an initial capacity.
+	temp := make([]Property, 0, len(n.Properties))
 	lastindex := -1
 	for _, v := range n.Properties {
 		index := v.Index()
 		if index >= 0 {
-			// some properties are added after deserializing and won't have a index
-			// Image upload is an example of this
-			lastindex = v.Index()
-			retv[lastindex] = v
+			lastindex = index
 		} else {
+			// Handle non-indexed properties, like IMAGEUPLOAD.
 			if v.TypeString() != "IMAGEUPLOAD" {
 				log.Printf("Property with unknown target index of type %s\n", v.TypeString())
 			}
-			// assume lastindex + 1
-			retv[lastindex+1] = v
+			lastindex++
+		}
+
+		// Ensure the slice is large enough by checking if we need to resize.
+		for len(temp) <= lastindex {
+			temp = append(temp, nil) // Append nil for interface type to increase slice size.
+		}
+
+		temp[lastindex] = v
+	}
+
+	// compact the slice to remove nils
+	retv := make([]Property, 0, len(temp))
+	for _, v := range temp {
+		if v != nil {
+			retv = append(retv, v)
 		}
 	}
 	return retv
