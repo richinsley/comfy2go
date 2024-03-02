@@ -110,7 +110,7 @@ func (b *BaseProperty) GetValue() interface{} {
 
 // SetValue calls the protocol implementation for valueFromString to get
 // the actual value that will be set.  valueFromString should perform
-// conversion to it's native type and constrain it when needed
+// conversion to its native type and constrain it when needed
 func (b *BaseProperty) SetValue(v interface{}) error {
 	vs := fmt.Sprintf("%v", v)
 	val := b.parent.valueFromString(vs)

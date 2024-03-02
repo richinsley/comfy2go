@@ -300,7 +300,7 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 		//			  },
 		// "node_errors": []
 		// }
-		perror := &PrompErrorMessage{}
+		perror := &PromptErrorMessage{}
 		perr := json.Unmarshal(body, &perror)
 		if perr != nil {
 			// return the original error
