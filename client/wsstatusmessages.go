@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 )
 
@@ -36,6 +37,8 @@ func (sm *WSStatusMessage) UnmarshalJSON(b []byte) error {
 	case "progress":
 		sm.Data = &WSMessageDataProgress{}
 	case "executed":
+		// this is a special case because the data type is not always the same
+		// so we need to unmarshal it manually
 		sm.Data = &WSMessageDataExecuted{}
 	case "execution_interrupted":
 		sm.Data = &WSMessageExecutionInterrupted{}
@@ -130,22 +133,63 @@ type WSMessageDataProgress struct {
 
 type WSMessageDataExecuted struct {
 	Node     int                      `json:"node"`
-	Output   map[string]*[]DataOutput `json:"output"` // there may be other types of output besides "images" (hopefully text and latent images)
+	Output   map[string]*[]DataOutput `json:"output"`
 	PromptID string                   `json:"prompt_id"`
 }
 
 func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 	var temp struct {
-		Node     string                   `json:"node"`
-		Output   map[string]*[]DataOutput `json:"output"`
-		PromptID string                   `json:"prompt_id"`
+		Node      string                 `json:"node"`
+		OutputRaw map[string]interface{} `json:"output"`
+		PromptID  string                 `json:"prompt_id"`
 	}
 	if err := json.Unmarshal(b, &temp); err != nil {
 		return err
 	}
 
+	// iterrate over Outputraw and see if it can be cast to a slice of interface{}
+	mde.Output = make(map[string]*[]DataOutput)
+	for k, v := range temp.OutputRaw {
+		if val, ok := v.([]interface{}); ok {
+			for _, i := range val {
+				mde.Output[k] = &[]DataOutput{}
+				if outmap, ok := i.(map[string]interface{}); ok {
+					// ensure the output map has the required fields
+					outputentry := DataOutput{}
+					val, ok := outmap["filename"]
+					if ok {
+						outputentry.Filename = val.(string)
+					} else {
+						log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+						continue
+					}
+
+					val, ok = outmap["subfolder"]
+					if ok {
+						outputentry.Subfolder = val.(string)
+					} else {
+						// we can ignore this if it's absent
+						outputentry.Subfolder = ""
+					}
+
+					val, ok = outmap["type"]
+					if ok {
+						outputentry.Type = val.(string)
+					} else {
+						log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+						continue
+					}
+
+					*mde.Output[k] = append(*mde.Output[k], outputentry)
+				} else {
+					log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+				}
+			}
+		}
+
+	}
+
 	mde.PromptID = temp.PromptID
-	mde.Output = temp.Output
 
 	// Convert string to int
 	i, err := strconv.Atoi(temp.Node)
