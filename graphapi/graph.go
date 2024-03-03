@@ -181,8 +181,16 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 		} else {
 			if n.Type == "PrimitiveNode" {
 				primitives = append(primitives, n)
-			} else if n.Type == "Note" || n.Type == "Reroute" {
-				// skip Notes, Reroute
+			} else if n.Type == "Note" {
+				notewidgets := n.WidgetValues.([]interface{})
+				// get the pointer to the first widget value
+				// we'll set the property direct_value to point to the widget inteface we want to target
+				np := newStringProperty("text", false, nil, 0)
+				(*np).SetDirectValue(&notewidgets[0])
+				n.Properties["text"] = *np
+				continue
+			} else if n.Type == "Reroute" {
+				// skip Reroute
 				continue
 			} else {
 				log.Printf("Could not get node object for %s\n", n.Type)

@@ -47,6 +47,8 @@ type Property interface {
 	ToImageUploadProperty() (*ImageUploadProperty, bool)
 	ToUnknownProperty() (*UnknownProperty, bool)
 	valueFromString(value string) interface{}
+
+	SetDirectValue(v *interface{})
 }
 
 type BaseProperty struct {
@@ -59,6 +61,12 @@ type BaseProperty struct {
 	secondaries        []Property
 	override_property  interface{} // if non-nil, this value will be serialized
 	index              int
+	direct_value       *interface{}
+}
+
+func (b *BaseProperty) SetDirectValue(v *interface{}) {
+	b.direct_value = v
+	b.serializable = false
 }
 
 func (b *BaseProperty) UpdateParent(parent Property) {
@@ -98,6 +106,10 @@ func (b *BaseProperty) GetValue() interface{} {
 		return b.override_property
 	}
 
+	if b.direct_value != nil {
+		return b.direct_value
+	}
+
 	if b.target_node != nil {
 		if b.target_node.IsWidgetValueArray() {
 			return b.target_node.WidgetValuesArray()[b.target_value_index]
@@ -117,6 +129,12 @@ func (b *BaseProperty) SetValue(v interface{}) error {
 	if val == nil {
 		return errors.New("could not get converted type")
 	}
+
+	if b.direct_value != nil {
+		*b.direct_value = val
+		return nil
+	}
+
 	if b.target_node != nil {
 		if b.target_node.IsWidgetValueArray() {
 			b.target_node.WidgetValuesArray()[b.target_value_index] = val
