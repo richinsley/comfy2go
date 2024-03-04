@@ -2,7 +2,7 @@ package client
 
 import "github.com/richinsley/comfy2go/graphapi"
 
-// There may be other DataOutput types.  We defeinitely need a text type
+// There may be other DataOutput types.  We definitely need a text type
 
 type DataOutput struct {
 	Filename  string `json:"filename"`
@@ -51,7 +51,7 @@ type PromptError struct {
 	ExtraInfo map[string]interface{} `json:"extra_info"`
 }
 
-type PrompErrorMessage struct {
+type PromptErrorMessage struct {
 	Error      PromptError   `json:"error"`
 	NodeErrors []interface{} `json:"node_errors"`
 }
