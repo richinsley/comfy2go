@@ -2,8 +2,9 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -145,7 +146,7 @@ func (c *ComfyClient) NewGraphFromPNGReader(r io.Reader) (*graphapi.Graph, *[]st
 	// get the workflow from the PNG metadata
 	workflow, ok := metadata["workflow"]
 	if !ok {
-		log.Fatal("PNG doen not contain workflow metadata")
+		return nil, nil, errors.New("png does not contain workflow metadata")
 	}
 	reader := strings.NewReader(workflow)
 
@@ -182,7 +183,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 	message := &WSStatusMessage{}
 	err := json.Unmarshal([]byte(msg), &message)
 	if err != nil {
-		log.Println("Deserializing Status Message:", err)
+		slog.Error("Deserializing Status Message:", err)
 	}
 
 	switch message.Type {
@@ -334,6 +335,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		}
 	default:
 		// Handle unknown data types or return a dedicated error here
-		log.Printf("unhandled message type: %s\n", message.Type)
+		slog.Warn("Unhandled message type: ", "type", message.Type)
 	}
 }

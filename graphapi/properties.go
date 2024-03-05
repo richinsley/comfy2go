@@ -3,7 +3,7 @@ package graphapi
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"reflect"
 	"strconv"
@@ -547,13 +547,13 @@ func newCascadeProperty(input_name string, optional bool, input []interface{}, i
 											newprop := NewPropertyFromInput(propname, false, &paramAsInterface, index)
 											group.Entries = append(group.Entries, CasdcadeEntry{Name: propname, Property: newprop})
 										} else {
-											log.Println("TODO - Potential non-string property name")
+											slog.Debug("TODO - Potential non-string property name")
 										}
 									} else {
-										log.Println("TODO - Potential non-slice property group")
+										slog.Debug("TODO - Potential non-slice property group")
 									}
 								} else {
-									log.Println("TODO - Potential non-slice property group")
+									slog.Debug("TODO - Potential non-slice property group")
 								}
 							}
 						}
@@ -631,7 +631,7 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 				c.Values = append(c.Values, "false")
 			}
 		} else {
-			log.Printf("TODO - Potential non-string combo entry <%s>\n", reflect.TypeOf(v).Name())
+			slog.Debug(fmt.Sprintf("TODO - Potential non-string combo entry <%s>", reflect.TypeOf(v).Name()))
 		}
 	}
 	var retv Property = c
@@ -801,7 +801,6 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 				}
 			}
 		}
-		log.Println("Success:", slice)
 	} else if s, ok := dereferenced.(string); ok {
 		// Edge case for an "Any" input property
 		if s == "*" {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -304,7 +304,7 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 		perr := json.Unmarshal(body, &perror)
 		if perr != nil {
 			// return the original error
-			log.Println(string(body))
+			slog.Error("error unmarshalling prompt error", "body", string(body))
 			return nil, err
 		} else {
 			return nil, errors.New(perror.Error.Message)

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 
 	"sort"
@@ -109,7 +109,7 @@ func duplicateProperty(prop Property) Property {
 		np := *prop.(*UnknownProperty)
 		return &np
 	}
-	log.Println("Cannot duplicate property of unknown type")
+	slog.Warn("Cannot duplicate property of unknown type")
 	return nil
 }
 
@@ -174,10 +174,10 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 						(*np).SetAlias("file")
 						n.Properties["choose file to upload"] = *np
 					} else {
-						log.Println("Cannot find \"image\" property")
+						slog.Error("Cannot find \"image\" property")
 					}
 				} else {
-					log.Printf("size missmatch for %s\n", n.Type)
+					slog.Warn("size missmatch for", "node type", n.Type)
 				}
 			}
 		} else {
@@ -195,7 +195,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 				// skip Reroute
 				continue
 			} else {
-				log.Printf("Could not get node object for %s\n", n.Type)
+				slog.Error("Could not get node object for", "node type", n.Type)
 				if retv == nil {
 					r := make([]string, 0)
 					retv = &r
@@ -231,7 +231,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 							if first_property == nil {
 								first_property = target_node.Inputs[primitive_node_output_link.TargetSlot].Property
 								if first_property == nil {
-									log.Printf("Could not get primitive target slot property %s for node %s\n", target_node.Inputs[primitive_node_output_link.TargetSlot].Name, target_node.Title)
+									slog.Warn("Could not get primitive target slot property %s for node %s", target_node.Inputs[primitive_node_output_link.TargetSlot].Name, target_node.Title)
 									continue
 								}
 								// copy the property and assign it the node's "value" property
@@ -304,20 +304,20 @@ func (t *Graph) ProcessSettableProperties(n *GraphNode, props *[]Property, pinde
 			// get the widget value
 			wv, ok := wmap[prop.Name()]
 			if !ok {
-				log.Printf("Cannot find widget value for %s\n", prop.Name())
+				slog.Warn("Cannot find widget value for", "property", prop.Name())
 				continue
 			}
 			// get the widget's string value
 			wvstr, ok := wv.(string)
 			if !ok {
-				log.Printf("Cannot convert widget value to string for %s\n", prop.Name())
+				slog.Warn("Cannot convert widget value to string for", "property", prop.Name())
 				continue
 			}
 
 			// get the cascade group with the same name as the widget value
 			cg := prop.(*CascadingProperty).GetGroupByName(wvstr)
 			if cg == nil {
-				log.Printf("Cannot find cascade group for %s\n", wvstr)
+				slog.Warn("Cannot find cascade group for", "widget", wvstr)
 				continue
 			}
 			groupproperties := cg.Properties()
@@ -332,7 +332,7 @@ func (t *Graph) ProcessSettableProperties(n *GraphNode, props *[]Property, pinde
 			// now append the cascade group's properties
 			t.ProcessSettableProperties(n, &groupproperties, pindex)
 		case "UNKNOWN":
-			log.Println("UNKNOWN property type in settable field")
+			slog.Warn("UNKNOWN property type in settable field")
 			np := *prop.(*UnknownProperty)
 			np.UpdateParent(&np)
 			np.SetTargetWidget(n, *pindex)

@@ -1,7 +1,7 @@
 package graphapi
 
 import (
-	"log"
+	"log/slog"
 )
 
 // GraphNode represents the encapsulation of an individual functionality within a Graph
@@ -129,7 +129,7 @@ func (n *GraphNode) GetPropertiesByIndex() []Property {
 		} else {
 			// Handle non-indexed properties, like IMAGEUPLOAD.
 			if v.TypeString() != "IMAGEUPLOAD" {
-				log.Printf("Property with unknown target index of type %s\n", v.TypeString())
+				slog.Warn("Property with unknown target index of type", "type", v.TypeString())
 			}
 			lastindex++
 		}

@@ -2,7 +2,8 @@ package client
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"strconv"
 )
 
@@ -160,7 +161,7 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 					if ok {
 						outputentry.Filename = val.(string)
 					} else {
-						log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+						slog.Warn(fmt.Sprintf("WSMessageDataExecuted output entry %v unknown type", i))
 						continue
 					}
 
@@ -176,7 +177,7 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 					if ok {
 						outputentry.Type = val.(string)
 					} else {
-						log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+						slog.Warn(fmt.Sprintf("WSMessageDataExecuted output entry %v unknown type", i))
 						continue
 					}
 
@@ -191,7 +192,7 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 					}
 					*mde.Output[k] = append(*mde.Output[k], textout)
 				} else {
-					log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+					slog.Warn(fmt.Sprintf("WSMessageDataExecuted output entry %v unknown type", i))
 					// create an "unknown" type
 					// convert i to a string and store it as text
 					outstring := i.(string)

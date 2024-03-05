@@ -1,7 +1,7 @@
 package client
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -60,12 +60,12 @@ func (w *WebSocketConnection) ConnectionManager() {
 		case <-w.ConnectionDone:
 			err := w.Close()
 			if err != nil {
-				log.Println("Error when closing WebSocket: ", err)
+				slog.Error("Error when closing WebSocket: ", err)
 			}
 		default:
 			err := w.connect()
 			if err != nil {
-				log.Println("Error when connecting to WebSocket: ", err)
+				slog.Error("Error when connecting to WebSocket: ", err)
 				w.RetryCount++
 				if w.RetryCount <= w.MaxRetry {
 					time.Sleep(5 * time.Second) // constant delay before retrying
@@ -87,7 +87,7 @@ func (w *WebSocketConnection) listen() {
 	for {
 		_, message, err := w.Conn.ReadMessage()
 		if err != nil {
-			log.Println("Error when reading from WebSocket: ", err)
+			slog.Error("Error when reading from WebSocket: ", err)
 			w.IsConnected = false
 			w.ConnectionDone <- true
 			break

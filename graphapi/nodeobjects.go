@@ -2,7 +2,8 @@ package graphapi
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -155,7 +156,7 @@ func (n *NodeObjects) PopulateInputProperties() {
 				o.InputProperties = append(o.InputProperties, nprop)
 				o.InputPropertiesByID[k] = nprop
 			} else {
-				log.Printf("Cannot create property %s for object %s\n", k, o.Name)
+				slog.Error(fmt.Sprintf("Cannot create property %s for object %s", k, o.Name))
 				continue
 			}
 
@@ -178,7 +179,7 @@ func (n *NodeObjects) PopulateInputProperties() {
 					o.InputProperties = append(o.InputProperties, nprop)
 					o.InputPropertiesByID[k] = nprop
 				} else {
-					log.Printf("Cannot create property %s for object %s\n", k, o.Name)
+					slog.Error(fmt.Sprintf("Cannot create property %s for object %s", k, o.Name))
 					continue
 				}
 
