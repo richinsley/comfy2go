@@ -170,6 +170,8 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 					targetProp := n.GetPropertyWithName("image")
 					if targetProp != nil {
 						np := newImageUploadProperty("choose file to upload", targetProp.(*ComboProperty), len(n.Properties))
+						// set the alias to "file"
+						(*np).SetAlias("file")
 						n.Properties["choose file to upload"] = *np
 					} else {
 						log.Println("Cannot find \"image\" property")

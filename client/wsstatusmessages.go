@@ -181,8 +181,27 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 					}
 
 					*mde.Output[k] = append(*mde.Output[k], outputentry)
+				} else if outstring, ok := i.(string); ok {
+					// handle raw text output
+					textout := DataOutput{
+						Filename:  "",
+						Subfolder: "",
+						Type:      "text",
+						Text:      outstring,
+					}
+					*mde.Output[k] = append(*mde.Output[k], textout)
 				} else {
 					log.Printf("WSMessageDataExecuted output entry %v unknown type", i)
+					// create an "unknown" type
+					// convert i to a string and store it as text
+					outstring := i.(string)
+					textout := DataOutput{
+						Filename:  "",
+						Subfolder: "",
+						Type:      "unknown",
+						Text:      outstring,
+					}
+					*mde.Output[k] = append(*mde.Output[k], textout)
 				}
 			}
 		}

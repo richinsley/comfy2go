@@ -104,6 +104,14 @@ func (n *GraphNode) GetPropertyWithName(name string) Property {
 	if ok {
 		return retv
 	}
+
+	// check n.Properties for an aliased property
+	for _, p := range n.Properties {
+		if p.GetAlias() == name {
+			return p
+		}
+	}
+
 	return nil
 }
 

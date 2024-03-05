@@ -36,6 +36,8 @@ type Property interface {
 	Index() int
 	SetIndex(index int)
 	TargetIndex() int
+	SetAlias(string)
+	GetAlias() string
 
 	UpdateParent(parent Property)
 	ToIntProperty() (*IntProperty, bool)
@@ -62,6 +64,7 @@ type BaseProperty struct {
 	override_property  interface{} // if non-nil, this value will be serialized
 	index              int
 	direct_value       *interface{}
+	alias              string
 }
 
 func (b *BaseProperty) SetDirectValue(v *interface{}) {
@@ -216,6 +219,14 @@ func (b *BaseProperty) ToUnknownProperty() (*UnknownProperty, bool) {
 		return prop, true
 	}
 	return nil, false
+}
+
+func (b *BaseProperty) SetAlias(a string) {
+	b.alias = a
+}
+
+func (b *BaseProperty) GetAlias() string {
+	return b.alias
 }
 
 type BoolProperty struct {

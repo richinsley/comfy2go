@@ -8,6 +8,7 @@ type DataOutput struct {
 	Filename  string `json:"filename"`
 	Subfolder string `json:"subfolder"`
 	Type      string `json:"type"`
+	Text      string `json:"-"` // for "text" type data output
 }
 
 type SystemStats struct {

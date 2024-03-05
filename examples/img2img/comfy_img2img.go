@@ -78,7 +78,7 @@ func main() {
 	if loadImageNode == nil {
 		log.Println("missing Load Image node")
 	} else {
-		// get the property interface for "choose file to upload"
+		// get the property interface for "choose file to upload" or the alias "file"
 		prop := loadImageNode.GetPropertyWithName("choose file to upload")
 		if prop == nil {
 			log.Println("missing property \"choose file to upload\"")
@@ -155,7 +155,7 @@ func main() {
 						}
 						f.Write(*img_data)
 						f.Close()
-						log.Println("Got image: ", output.Filename)
+						log.Println("Got data: ", output.Filename)
 					}
 				}
 			}

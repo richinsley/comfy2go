@@ -146,7 +146,7 @@ func main() {
 						}
 						f.Write(*img_data)
 						f.Close()
-						log.Println("Got image: ", output.Filename)
+						log.Println("Got data: ", output.Filename)
 					}
 				}
 			}
