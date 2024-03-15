@@ -17,8 +17,13 @@ func (r *Group) IntersectsOrContains(node *GraphNode) bool {
 	rw := float64(r.Bounding[2])
 	rh := float64(r.Bounding[3])
 
-	nx := node.Position.X
-	ny := node.Position.Y
+	pos, ok := node.Position.([]interface{})
+	if !ok {
+		return false
+	}
+
+	nx := pos[0].(float64)
+	ny := pos[1].(float64)
 	nw := node.Size.Width
 	nh := node.Size.Width
 

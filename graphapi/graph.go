@@ -177,7 +177,7 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 						slog.Error("Cannot find \"image\" property")
 					}
 				} else {
-					slog.Warn("size missmatch for", "node type", n.Type)
+					slog.Debug("size missmatch for", "node type", n.Type)
 				}
 			}
 		} else {

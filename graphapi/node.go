@@ -8,7 +8,7 @@ import (
 type GraphNode struct {
 	ID                 int                     `json:"id"`
 	Type               string                  `json:"type"`
-	Position           Pos                     `json:"pos"`
+	Position           interface{}             `json:"pos"`
 	Size               Size                    `json:"size"`
 	Flags              *interface{}            `json:"flags"`
 	Order              int                     `json:"order"`
