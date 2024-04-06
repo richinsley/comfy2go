@@ -1,7 +1,8 @@
 package graphapi
 
 type SimpleAPI struct {
-	Properties map[string]Property
+	Properties  map[string]Property
+	OutputNodes []*GraphNode
 }
 
 func getImageUploader(props []Property) Property {
@@ -32,6 +33,11 @@ func (t *Graph) GetSimpleAPI(title *string) *SimpleAPI {
 	}
 	nodes := t.GetNodesInGroup(group)
 	for _, n := range nodes {
+		// is the node an output node?  Get the *graphapi.NodeObjects for the node
+		if n.IsOutput {
+			retv.OutputNodes = append(retv.OutputNodes, n)
+		}
+
 		props := n.GetPropertiesByIndex()
 		if len(props) > 0 {
 			// if a node has an image uploader property, we want that one

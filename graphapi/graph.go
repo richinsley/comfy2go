@@ -155,6 +155,9 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 			n.DisplayName = nobject.DisplayName
 			n.Description = nobject.Description
 
+			// is this node an output node?
+			n.IsOutput = nobject.OutputNode
+
 			// get the settable properties and associate them with correct widgets
 			props := nobject.GetSettableProperties()
 			t.ProcessSettableProperties(n, &props, &pindex)

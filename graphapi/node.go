@@ -29,6 +29,7 @@ type GraphNode struct {
 	Properties   map[string]Property `json:"-"`
 	DisplayName  string              `json:"-"`
 	Description  string              `json:"-"`
+	IsOutput     bool                `json:"-"`
 }
 
 func (n *GraphNode) WidgetValuesArray() []interface{} {
