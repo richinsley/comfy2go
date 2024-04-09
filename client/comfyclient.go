@@ -102,7 +102,7 @@ func NewComfyClient(server_address string, server_port int, callbacks *ComfyClie
 }
 
 func (cc *ComfyClient) OnMessage(message string) {
-	slog.Debug("Received initial message: %s", "message", message)
+	cc.OnWindowSocketMessage(message)
 }
 
 // IsInitialized returns true if the client's websocket is connected and initialized
