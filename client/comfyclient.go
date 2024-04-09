@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/richinsley/comfy2go/graphapi"
@@ -41,6 +42,35 @@ type ComfyClient struct {
 	queuecount            int
 	callbacks             *ComfyClientCallbacks
 	lastProcessedPromptID string
+	timeout               int
+}
+
+// NewComfyClientWithTimeout creates a new instance of a Comfy2go client with a connection timeout
+func NewComfyClientWithTimeout(server_address string, server_port int, callbacks *ComfyClientCallbacks, timeout int, retry int) *ComfyClient {
+	sbaseaddr := server_address + ":" + strconv.Itoa(server_port)
+	cid := uuid.New().String()
+	retv := &ComfyClient{
+		serverBaseAddress: sbaseaddr,
+		serverAddress:     server_address,
+		serverPort:        server_port,
+		clientid:          cid,
+		queueditems:       make(map[string]*QueueItem),
+		webSocket: &WebSocketConnection{
+			WebSocketURL:   "ws://" + sbaseaddr + "/ws?clientId=" + cid,
+			ConnectionDone: make(chan bool),
+			MaxRetry:       retry, // Maximum number of retries
+			ManagerStarted: false,
+			BaseDelay:      1 * time.Second,
+			MaxDelay:       10 * time.Second,
+		},
+		initialized: false,
+		queuecount:  0,
+		callbacks:   callbacks,
+		timeout:     timeout,
+	}
+	// golang uses mark-sweep GC, so this circular reference should be fine
+	retv.webSocket.Callback = retv
+	return retv
 }
 
 // NewComfyClient creates a new instance of a Comfy2go client
@@ -57,20 +87,48 @@ func NewComfyClient(server_address string, server_port int, callbacks *ComfyClie
 			WebSocketURL:   "ws://" + sbaseaddr + "/ws?clientId=" + cid,
 			ConnectionDone: make(chan bool),
 			MaxRetry:       5, // Maximum number of retries
-			managerstarted: false,
+			ManagerStarted: false,
+			BaseDelay:      1 * time.Second,
+			MaxDelay:       10 * time.Second,
 		},
 		initialized: false,
 		queuecount:  0,
 		callbacks:   callbacks,
+		timeout:     -1,
 	}
 	// golang uses mark-sweep GC, so this circular reference should be fine
 	retv.webSocket.Callback = retv
 	return retv
 }
 
-// IsInitialized returns true if the client's websocket is connected
+func (cc *ComfyClient) OnMessage(message string) {
+	slog.Debug("Received initial message: %s", "message", message)
+}
+
+// IsInitialized returns true if the client's websocket is connected and initialized
 func (c *ComfyClient) IsInitialized() bool {
+	if c.initialized {
+		// ping the websocket to see if it is still connected
+		err := c.webSocket.Ping()
+		if err != nil {
+			c.webSocket.Conn.Close()
+			c.initialized = false
+			c.webSocket.IsConnected = false
+		}
+	}
 	return c.initialized
+}
+
+// CheckConnection checks if the websocket connection is still active and tries to reinitialize if not
+func (c *ComfyClient) CheckConnection() error {
+	if !c.IsInitialized() {
+		// try to initialize first
+		err := c.Init()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Init starts the websocket connection (if not already connected) and retrieves the collection of node objects
@@ -78,13 +136,13 @@ func (c *ComfyClient) Init() error {
 	if !c.webSocket.IsConnected {
 		// as soon as the ws is connected, it will receive a "status" message of the current status
 		// of the ComfyUI server
-		err := c.webSocket.ConnectWithManager()
+		err := c.webSocket.ConnectWithManager(c.timeout)
 		if err != nil {
 			return err
 		}
 	}
 
-	// 1. Get the object infos for the Comfy Server
+	// Get the object infos for the Comfy Server
 	object_infos, err := c.GetObjectInfos()
 	if err != nil {
 		return err

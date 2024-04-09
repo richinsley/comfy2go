@@ -37,6 +37,11 @@ import (
 */
 
 func (c *ComfyClient) GetSystemStats() (*SystemStats, error) {
+	err := c.CheckConnection()
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := http.Get(fmt.Sprintf("http://%s/system_stats", c.serverBaseAddress))
 	if err != nil {
 		return nil, err
@@ -255,14 +260,9 @@ func (c *ComfyClient) GetObjectInfos() (*graphapi.NodeObjects, error) {
 }
 
 func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
-
-	if !c.webSocket.IsConnected {
-		// as soon as the ws is connected, it will receive a "status" message of the current status
-		// of the ComfyUI server
-		err := c.webSocket.ConnectWithManager()
-		if err != nil {
-			return nil, err
-		}
+	err := c.CheckConnection()
+	if err != nil {
+		return nil, err
 	}
 
 	prompt, err := graph.GraphToPrompt(c.clientid)
