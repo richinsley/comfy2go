@@ -152,8 +152,8 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 	mde.Output = make(map[string]*[]DataOutput)
 	for k, v := range temp.OutputRaw {
 		if val, ok := v.([]interface{}); ok {
+			mde.Output[k] = &[]DataOutput{}
 			for _, i := range val {
-				mde.Output[k] = &[]DataOutput{}
 				if outmap, ok := i.(map[string]interface{}); ok {
 					// ensure the output map has the required fields
 					outputentry := DataOutput{}
