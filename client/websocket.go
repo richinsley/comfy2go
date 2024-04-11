@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"math"
 	"sync"
@@ -49,7 +48,7 @@ func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
 			case <-attemptConnect:
 				err := w.connect()
 				if err != nil {
-					log.Printf("Connection attempt failed: %v", err)
+					slog.Error("Connection attempt failed: ", "error", err)
 					w.IsConnected = false
 
 					// Check if the maximum number of retries has been reached
@@ -65,7 +64,6 @@ func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
 						attemptConnect <- true
 					})
 				} else {
-					log.Println("Connected successfully.")
 					w.IsConnected = true
 					close(connected) // Signal that the connection was successful
 					w.handleMessages()
@@ -101,7 +99,7 @@ func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
 func (w *WebSocketConnection) connect() error {
 	conn, _, err := websocket.DefaultDialer.Dial(w.WebSocketURL, nil)
 	if err != nil {
-		log.Printf("Failed to connect: %v", err)
+		slog.Error("Failed to connect: ", "error", err)
 		return err
 	}
 
@@ -127,7 +125,7 @@ func (w *WebSocketConnection) handleMessages() {
 	for {
 		_, message, err := w.Conn.ReadMessage()
 		if err != nil {
-			log.Printf("Read error: %v", err)
+			slog.Warn(fmt.Sprintf("Read error: %v", err))
 			break
 		}
 		if w.Callback != nil {
