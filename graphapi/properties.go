@@ -127,7 +127,22 @@ func (b *BaseProperty) GetValue() interface{} {
 // the actual value that will be set.  valueFromString should perform
 // conversion to its native type and constrain it when needed
 func (b *BaseProperty) SetValue(v interface{}) error {
-	vs := fmt.Sprintf("%v", v)
+	// convert the value to a string first
+	var vs string
+
+	// if v is of type float64 or float32 and the property is an int, convert it to an int
+	if b.parent.TypeString() == "INT" {
+		if f, ok := v.(float64); ok {
+			vs = fmt.Sprintf("%d", int64(f))
+		} else if f, ok := v.(float32); ok {
+			vs = fmt.Sprintf("%d", int64(f))
+		} else {
+			vs = fmt.Sprintf("%v", v)
+		}
+	} else {
+		vs = fmt.Sprintf("%v", v)
+	}
+
 	val := b.parent.valueFromString(vs)
 	if val == nil {
 		return errors.New("could not get converted type")
