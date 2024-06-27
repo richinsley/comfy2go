@@ -101,6 +101,36 @@ func NewComfyClient(server_address string, server_port int, callbacks *ComfyClie
 	return retv
 }
 
+func NewComfyClient2(server_address string, server_port int, callbacks *ComfyClientCallbacks) *ComfyClient {
+	sbaseaddr := server_address + ":" + strconv.Itoa(server_port)
+	if server_port == 0 {
+		sbaseaddr = server_address
+	}
+	cid := uuid.New().String()
+	retv := &ComfyClient{
+		serverBaseAddress: sbaseaddr,
+		serverAddress:     server_address,
+		serverPort:        server_port,
+		clientid:          cid,
+		queueditems:       make(map[string]*QueueItem),
+		webSocket: &WebSocketConnection{
+			WebSocketURL:   "wws://" + sbaseaddr + "/ws?clientId=" + cid,
+			ConnectionDone: make(chan bool),
+			MaxRetry:       5, // Maximum number of retries
+			ManagerStarted: false,
+			BaseDelay:      1 * time.Second,
+			MaxDelay:       10 * time.Second,
+		},
+		initialized: false,
+		queuecount:  0,
+		callbacks:   callbacks,
+		timeout:     -1,
+	}
+	// golang uses mark-sweep GC, so this circular reference should be fine
+	retv.webSocket.Callback = retv
+	return retv
+}
+
 func (cc *ComfyClient) OnMessage(message string) {
 	cc.OnWindowSocketMessage(message)
 }
