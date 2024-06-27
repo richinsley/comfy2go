@@ -55,7 +55,7 @@ func (c *ComfyClient) UploadFileFromReader(r io.Reader, filename string, overwri
 	writer.Close()
 
 	// Create the request
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/upload/image", c.serverBaseAddress), &requestBody)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/upload/image", c.GetBaseUrl()), &requestBody)
 	if err != nil {
 		return "", err
 	}

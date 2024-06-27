@@ -1,8 +1,7 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"github.com/richinsley/comfy2go/examples/common"
 	"image"
 	"image/color"
 	"image/draw"
@@ -15,23 +14,9 @@ import (
 )
 
 // process CLI arguments
-func procCLI() (string, int) {
-	serverAddress := flag.String("address", "localhost", "Server address")
-	serverPort := flag.Int("port", 8188, "Server port")
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
-		fmt.Printf("  %s [OPTIONS] filename", os.Args[0])
-		fmt.Println("\nOptions:")
-		flag.PrintDefaults()
-		fmt.Println("\nfilename: Path to workflow json file")
-	}
-	flag.Parse()
-
-	return *serverAddress, *serverPort
-}
 
 func main() {
-	clientaddr, clientport := procCLI()
+	protocolType, clientaddr, clientport := common.ProcCLI()
 
 	callbacks := &client.ComfyClientCallbacks{
 		ClientQueueCountChanged: func(c *client.ComfyClient, queuecount int) {
@@ -40,7 +25,7 @@ func main() {
 	}
 
 	// create a client
-	c := client.NewComfyClient(clientaddr, clientport, callbacks)
+	c := client.NewComfyClient(clientaddr, clientport, callbacks, protocolType)
 
 	// the client needs to be in an initialized state before usage
 	if !c.IsInitialized() {
@@ -53,7 +38,7 @@ func main() {
 	}
 
 	// load the workflow
-	graph, _, err := c.NewGraphFromJsonFile("img2img.json")
+	graph, _, err := c.NewGraphFromJsonFile("./img2img.json")
 	if err != nil {
 		log.Println("Error loading graph JSON:", err)
 		os.Exit(1)

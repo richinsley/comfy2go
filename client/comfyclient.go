@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -43,6 +44,7 @@ type ComfyClient struct {
 	callbacks             *ComfyClientCallbacks
 	lastProcessedPromptID string
 	timeout               int
+	protocolType          string
 }
 
 // NewComfyClientWithTimeout creates a new instance of a Comfy2go client with a connection timeout
@@ -74,39 +76,15 @@ func NewComfyClientWithTimeout(server_address string, server_port int, callbacks
 }
 
 // NewComfyClient creates a new instance of a Comfy2go client
-func NewComfyClient(server_address string, server_port int, callbacks *ComfyClientCallbacks) *ComfyClient {
-	sbaseaddr := server_address + ":" + strconv.Itoa(server_port)
+func NewComfyClient(server_address string, server_port int, callbacks *ComfyClientCallbacks, protocolType string) *ComfyClient {
 	cid := uuid.New().String()
-	retv := &ComfyClient{
-		serverBaseAddress: sbaseaddr,
-		serverAddress:     server_address,
-		serverPort:        server_port,
-		clientid:          cid,
-		queueditems:       make(map[string]*QueueItem),
-		webSocket: &WebSocketConnection{
-			WebSocketURL:   "ws://" + sbaseaddr + "/ws?clientId=" + cid,
-			ConnectionDone: make(chan bool),
-			MaxRetry:       5, // Maximum number of retries
-			ManagerStarted: false,
-			BaseDelay:      1 * time.Second,
-			MaxDelay:       10 * time.Second,
-		},
-		initialized: false,
-		queuecount:  0,
-		callbacks:   callbacks,
-		timeout:     -1,
+	ws := Ws
+	if protocolType == Https {
+		ws = Wss
 	}
-	// golang uses mark-sweep GC, so this circular reference should be fine
-	retv.webSocket.Callback = retv
-	return retv
-}
+	webSocketURL := fmt.Sprintf("%s://%s/ws?clientId=%s", ws, server_address, cid)
 
-func NewComfyClient2(server_address string, server_port int, callbacks *ComfyClientCallbacks) *ComfyClient {
 	sbaseaddr := server_address + ":" + strconv.Itoa(server_port)
-	if server_port == 0 {
-		sbaseaddr = server_address
-	}
-	cid := uuid.New().String()
 	retv := &ComfyClient{
 		serverBaseAddress: sbaseaddr,
 		serverAddress:     server_address,
@@ -114,17 +92,18 @@ func NewComfyClient2(server_address string, server_port int, callbacks *ComfyCli
 		clientid:          cid,
 		queueditems:       make(map[string]*QueueItem),
 		webSocket: &WebSocketConnection{
-			WebSocketURL:   "wws://" + sbaseaddr + "/ws?clientId=" + cid,
+			WebSocketURL:   webSocketURL,
 			ConnectionDone: make(chan bool),
 			MaxRetry:       5, // Maximum number of retries
 			ManagerStarted: false,
 			BaseDelay:      1 * time.Second,
 			MaxDelay:       10 * time.Second,
 		},
-		initialized: false,
-		queuecount:  0,
-		callbacks:   callbacks,
-		timeout:     -1,
+		initialized:  false,
+		queuecount:   0,
+		callbacks:    callbacks,
+		timeout:      -1,
+		protocolType: protocolType,
 	}
 	// golang uses mark-sweep GC, so this circular reference should be fine
 	retv.webSocket.Callback = retv

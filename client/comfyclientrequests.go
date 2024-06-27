@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -36,13 +35,20 @@ import (
 @routes.post("/upload/mask")
 */
 
+const (
+	Http  = "http"
+	Https = "https"
+	Ws    = "ws"
+	Wss   = "wss"
+)
+
 func (c *ComfyClient) GetSystemStats() (*SystemStats, error) {
 	err := c.CheckConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.Get(fmt.Sprintf("http://%s/system_stats", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/system_stats", c.GetBaseUrl()))
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +87,7 @@ func (c *ComfyClient) GetPromptHistoryByIndex() ([]PromptHistoryItem, error) {
 }
 
 func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/history", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/history", c.GetBaseUrl()))
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +172,7 @@ func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, erro
 // onnx
 // fonts
 func (c *ComfyClient) GetViewMetadata(folder string, file string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/view_metadata/%s?filename=%s", c.serverBaseAddress, folder, file))
+	resp, err := http.Get(fmt.Sprintf("%s/view_metadata/%s?filename=%s", c.GetBaseUrl(), folder, file))
 	if err != nil {
 		return "", err
 	}
@@ -181,7 +187,7 @@ func (c *ComfyClient) GetImage(image_data DataOutput) (*[]byte, error) {
 	params.Add("filename", image_data.Filename)
 	params.Add("subfolder", image_data.Subfolder)
 	params.Add("type", image_data.Type)
-	resp, err := http.Get(fmt.Sprintf("http://%s/view?%s", c.serverBaseAddress, params.Encode()))
+	resp, err := http.Get(fmt.Sprintf("%s/view?%s", c.GetBaseUrl(), params.Encode()))
 
 	if err != nil {
 		return nil, err
@@ -193,7 +199,7 @@ func (c *ComfyClient) GetImage(image_data DataOutput) (*[]byte, error) {
 
 // GetEmbeddings retrieves the list of Embeddings models installed on the ComfyUI server.
 func (c *ComfyClient) GetEmbeddings() ([]string, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/embeddings", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/embeddings", c.GetBaseUrl()))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +215,7 @@ func (c *ComfyClient) GetEmbeddings() ([]string, error) {
 }
 
 func (c *ComfyClient) GetQueueExecutionInfo() (*QueueExecInfo, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/prompt", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/prompt", c.GetBaseUrl()))
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +232,7 @@ func (c *ComfyClient) GetQueueExecutionInfo() (*QueueExecInfo, error) {
 
 // GetExtensions retrieves the list of extensions installed on the ComfyUI server.
 func (c *ComfyClient) GetExtensions() ([]string, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/extensions", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/extensions", c.GetBaseUrl()))
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +248,7 @@ func (c *ComfyClient) GetExtensions() ([]string, error) {
 }
 
 func (c *ComfyClient) GetObjectInfos() (*graphapi.NodeObjects, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/object_info", c.serverBaseAddress))
+	resp, err := http.Get(fmt.Sprintf("%s/object_info", c.GetBaseUrl()))
 
 	if err != nil {
 		return nil, err
@@ -276,7 +282,7 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 	defer c.webSocket.UnlockRead()
 
 	data, _ := json.Marshal(prompt)
-	resp, err := http.Post(fmt.Sprintf("http://%s/prompt", c.serverBaseAddress), "application/json", strings.NewReader(string(data)))
+	resp, err := http.Post(fmt.Sprintf("%s/prompt", c.GetBaseUrl()), "application/json", strings.NewReader(string(data)))
 
 	if err != nil {
 		return nil, err
@@ -292,30 +298,17 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 
 	err = json.Unmarshal(body, &item)
 	if err != nil {
-		// mmm-k, is it one of these:
-		// {"error": {"type": "prompt_no_outputs",
-		//				"message": "Prompt has no outputs",
-		//				"details": "",
-		//				"extra_info": {}
-		//			  },
-		// "node_errors": []
-		// }
-		perror := &PromptErrorMessage{}
-		perr := json.Unmarshal(body, &perror)
-		if perr != nil {
-			// return the original error
-			slog.Error("error unmarshalling prompt error", "body", string(body))
-			return nil, err
-		} else {
-			return nil, errors.New(perror.Error.Message)
-		}
+		return nil, err
+	}
+	if item.Error.Message != "" {
+		return nil, errors.New(item.Error.Message)
 	}
 	c.queueditems[item.PromptID] = item
 	return item, nil
 }
 
 func (c *ComfyClient) Interrupt() error {
-	resp, err := http.Post(fmt.Sprintf("http://%s/interrupt", c.serverBaseAddress), "application/json", strings.NewReader("{}"))
+	resp, err := http.Post(fmt.Sprintf("%s/interrupt", c.GetBaseUrl()), "application/json", strings.NewReader("{}"))
 	if err != nil {
 		return err
 	}
@@ -327,7 +320,7 @@ func (c *ComfyClient) Interrupt() error {
 func (c *ComfyClient) EraseHistory() error {
 	// delete post takes an array of IDs. We'll provide a single ID in a json array
 	data := "{\"clear\": \"clear\"}"
-	resp, err := http.Post(fmt.Sprintf("http://%s/history", c.serverBaseAddress), "application/json", strings.NewReader(data))
+	resp, err := http.Post(fmt.Sprintf("%s/history", c.GetBaseUrl()), "application/json", strings.NewReader(data))
 	if err != nil {
 		return err
 	}
@@ -336,10 +329,15 @@ func (c *ComfyClient) EraseHistory() error {
 	return nil
 }
 
+func (c *ComfyClient) GetBaseUrl() string {
+	baseUrl := fmt.Sprintf("%s://%s", c.protocolType, c.serverBaseAddress)
+	return baseUrl
+}
+
 func (c *ComfyClient) EraseHistoryItem(promptID string) error {
 	// delete post takes an array of IDs. We'll provide a single ID in a json array
 	item := fmt.Sprintf("{\"delete\": [\"%s\"]}", promptID)
-	resp, err := http.Post(fmt.Sprintf("http://%s/history", c.serverBaseAddress), "application/json", strings.NewReader(item))
+	resp, err := http.Post(fmt.Sprintf("%s/history", c.GetBaseUrl()), "application/json", strings.NewReader(item))
 	if err != nil {
 		return err
 	}

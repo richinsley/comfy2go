@@ -1,8 +1,7 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"github.com/richinsley/comfy2go/examples/common"
 	"log"
 	"os"
 
@@ -10,31 +9,8 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// process CLI arguments
-func procCLI() (string, int, string) {
-	serverAddress := flag.String("address", "localhost", "Server address")
-	serverPort := flag.Int("port", 8188, "Server port")
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
-		fmt.Printf("  %s [OPTIONS] filename", os.Args[0])
-		fmt.Println("\nOptions:")
-		flag.PrintDefaults()
-		fmt.Println("\nfilename: Path to workflow json file")
-	}
-	flag.Parse()
-
-	// Check for required filename argument
-	if len(flag.Args()) != 1 {
-		flag.Usage()
-		fmt.Println("Provide a PNG file with a workflow")
-		os.Exit(1)
-	}
-	filename := flag.Arg(0)
-	return *serverAddress, *serverPort, filename
-}
-
 func main() {
-	clientaddr, clientport, workflow := procCLI()
+	protocolType, clientaddr, clientport, workflow := common.ProcFileCLI()
 
 	callbacks := &client.ComfyClientCallbacks{
 		ClientQueueCountChanged: func(c *client.ComfyClient, queuecount int) {
@@ -43,7 +19,7 @@ func main() {
 	}
 
 	// create a client
-	c := client.NewComfyClient(clientaddr, clientport, callbacks)
+	c := client.NewComfyClient(clientaddr, clientport, callbacks, protocolType)
 
 	// the client needs to be in an initialized state before usage
 	if !c.IsInitialized() {
