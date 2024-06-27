@@ -345,3 +345,7 @@ func (c *ComfyClient) EraseHistoryItem(promptID string) error {
 	io.ReadAll(resp.Body)
 	return nil
 }
+
+func (c *ComfyClient) GetWebSocket() *WebSocketConnection {
+	return c.webSocket
+}
