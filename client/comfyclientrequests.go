@@ -254,7 +254,10 @@ func (c *ComfyClient) GetObjectInfos() (*graphapi.NodeObjects, error) {
 		return nil, err
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	result := &graphapi.NodeObjects{}
 	err = json.Unmarshal(body, &result.Objects)
 	if err != nil {

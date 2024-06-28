@@ -77,12 +77,12 @@ func NewComfyClientWithTimeout(server_address string, server_port int, callbacks
 
 // NewComfyClient creates a new instance of a Comfy2go client
 func NewComfyClient(server_address string, server_port int, callbacks *ComfyClientCallbacks, protocolType string) *ComfyClient {
-	cid := uuid.New().String()
+	cid := strings.ReplaceAll(uuid.New().String(), "-", "")
 	ws := Ws
 	if protocolType == Https {
 		ws = Wss
 	}
-	webSocketURL := fmt.Sprintf("%s://%s/ws?clientId=%s", ws, server_address, cid)
+	webSocketURL := fmt.Sprintf("%s://%s:%d/ws?clientId=%s", ws, server_address, server_port, cid)
 
 	sbaseaddr := server_address + ":" + strconv.Itoa(server_port)
 	retv := &ComfyClient{
