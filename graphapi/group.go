@@ -34,7 +34,7 @@ func (r *Group) IntersectsOrContains(node *GraphNode) bool {
 			pos[i] = v[fmt.Sprintf("%d", i)]
 		}
 	default:
-		slog.Warn("Node position is not of expected type []interface{}, map[int]float64, or map[string]interface{}", "type", fmt.Sprintf("%T", node.Position))
+		slog.Warn("Node position is not of expected type []interface{} or map[string]interface{}", "type", fmt.Sprintf("%T", node.Position))
 		return false
 	}
 
