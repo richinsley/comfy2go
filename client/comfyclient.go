@@ -5,12 +5,14 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/richinsley/comfy2go/graphapi"
 )
 
@@ -43,6 +45,7 @@ type ComfyClient struct {
 	callbacks             *ComfyClientCallbacks
 	lastProcessedPromptID string
 	timeout               int
+	httpclient            *http.Client
 }
 
 // NewComfyClientWithTimeout creates a new instance of a Comfy2go client with a connection timeout
@@ -62,11 +65,13 @@ func NewComfyClientWithTimeout(server_address string, server_port int, callbacks
 			ManagerStarted: false,
 			BaseDelay:      1 * time.Second,
 			MaxDelay:       10 * time.Second,
+			Dialer:         *websocket.DefaultDialer,
 		},
 		initialized: false,
 		queuecount:  0,
 		callbacks:   callbacks,
 		timeout:     timeout,
+		httpclient:  &http.Client{},
 	}
 	// golang uses mark-sweep GC, so this circular reference should be fine
 	retv.webSocket.Callback = retv
@@ -90,15 +95,22 @@ func NewComfyClient(server_address string, server_port int, callbacks *ComfyClie
 			ManagerStarted: false,
 			BaseDelay:      1 * time.Second,
 			MaxDelay:       10 * time.Second,
+			Dialer:         *websocket.DefaultDialer,
 		},
 		initialized: false,
 		queuecount:  0,
 		callbacks:   callbacks,
 		timeout:     -1,
+		httpclient:  &http.Client{},
 	}
 	// golang uses mark-sweep GC, so this circular reference should be fine
 	retv.webSocket.Callback = retv
 	return retv
+}
+
+func (cc *ComfyClient) SetDialer(dialer *websocket.Dialer) {
+	// dereference the pointer and copy the values
+	cc.webSocket.Dialer = *dialer
 }
 
 func (cc *ComfyClient) OnMessage(message string) {
@@ -156,6 +168,11 @@ func (c *ComfyClient) Init() error {
 // ClientID returns the unique client ID for the connection to the ComfyUI backend
 func (c *ComfyClient) ClientID() string {
 	return c.clientid
+}
+
+// return the underlying http client
+func (c *ComfyClient) HttpClient() *http.Client {
+	return c.httpclient
 }
 
 // NewGraphFromJsonReader creates a new graph from the data read from an io.Reader

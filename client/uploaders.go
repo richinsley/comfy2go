@@ -62,8 +62,7 @@ func (c *ComfyClient) UploadFileFromReader(r io.Reader, filename string, overwri
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Execute the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := c.httpclient.Do(req)
 	if err != nil {
 		return "", err
 	}
