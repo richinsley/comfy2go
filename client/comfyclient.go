@@ -175,6 +175,11 @@ func (c *ComfyClient) HttpClient() *http.Client {
 	return c.httpclient
 }
 
+// set the underlying http client
+func (c *ComfyClient) SetHttpClient(client *http.Client) {
+	c.httpclient = client
+}
+
 // NewGraphFromJsonReader creates a new graph from the data read from an io.Reader
 func (c *ComfyClient) NewGraphFromJsonReader(r io.Reader) (*graphapi.Graph, *[]string, error) {
 	if !c.IsInitialized() {
