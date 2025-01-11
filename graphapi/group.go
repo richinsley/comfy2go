@@ -6,9 +6,9 @@ import (
 )
 
 type Group struct {
-	Title    string `json:"title"`
-	Bounding []int  `json:"bounding"`
-	Color    string `json:"color"`
+	Title    string    `json:"title"`
+	Bounding []float64 `json:"bounding"`
+	Color    string    `json:"color"`
 }
 
 func (r *Group) IntersectsOrContains(node *GraphNode) bool {
@@ -18,10 +18,10 @@ func (r *Group) IntersectsOrContains(node *GraphNode) bool {
 	}
 
 	// the geometry is stored differently for nodes and groups
-	rx := float64(r.Bounding[0])
-	ry := float64(r.Bounding[1])
-	rw := float64(r.Bounding[2])
-	rh := float64(r.Bounding[3])
+	rx := r.Bounding[0]
+	ry := r.Bounding[1]
+	rw := r.Bounding[2]
+	rh := r.Bounding[3]
 
 	// The structure of the pos has changed with a newer version of ComfyUi
 	var pos []interface{}
