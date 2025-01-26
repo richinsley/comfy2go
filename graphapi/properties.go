@@ -320,20 +320,46 @@ func newIntProperty(input_name string, optional bool, data interface{}, index in
 	if d, ok := data.(map[string]interface{}); ok {
 		// min?
 		if val, ok := d["min"]; ok {
-			c.Min = int64(val.(float64))
+			floatVal := val.(float64)
+			if floatVal > float64(math.MaxInt64) {
+				c.Min = math.MaxInt64
+			} else if floatVal < float64(math.MinInt64) {
+				c.Min = math.MinInt64
+			} else {
+				c.Min = int64(floatVal)
+			}
 			c.hasRange = true
 		}
 
 		// max?
 		if val, ok := d["max"]; ok {
-			c.Max = int64(val.(float64))
+			floatVal := val.(float64)
+			if floatVal > float64(math.MaxInt64) {
+				c.Max = math.MaxInt64
+			} else if floatVal < float64(math.MinInt64) {
+				c.Max = math.MinInt64
+			} else {
+				c.Max = int64(floatVal)
+			}
 			c.hasRange = true
 		}
 
 		// step?
 		if val, ok := d["step"]; ok {
-			c.Step = int64(val.(float64))
+			floatVal := val.(float64)
+			if floatVal > float64(math.MaxInt64) {
+				c.Step = math.MaxInt64
+			} else if floatVal < float64(math.MinInt64) {
+				c.Step = math.MinInt64
+			} else {
+				c.Step = int64(floatVal)
+			}
 			c.hasStep = true
+		}
+
+		if c.hasRange && c.Min > c.Max {
+			c.Min = 0
+			c.Max = math.MaxInt64
 		}
 	}
 
