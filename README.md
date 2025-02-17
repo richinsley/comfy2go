@@ -71,7 +71,7 @@ func main() {
 	}
 
 	// create a graph from the png file
-	graph, err := c.NewGraphFromPNGFile(pngpath)
+	graph, _, err := c.NewGraphFromPNGFile(pngpath)
 	if err != nil {
 		log.Println("Failed to get workflow graph from png file:", err)
 		os.Exit(1)
