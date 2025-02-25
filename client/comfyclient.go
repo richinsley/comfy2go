@@ -413,6 +413,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			delete(c.queueditems, qi.PromptID)
 			qi.Messages <- m
 		}
+	case "crystools.monitor":
 	default:
 		// Handle unknown data types or return a dedicated error here
 		slog.Warn("Unhandled message type: ", "type", message.Type)
