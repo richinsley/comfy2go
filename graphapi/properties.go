@@ -798,6 +798,11 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 			}
 		} else {
 			if stype, ok := slice[0].(string); ok {
+				// This will prevent panic: runtime error: index out of range [1] with length 1
+				if len(slice) < 2 {
+					return newUnknownProperty(input_name, optional, stype, index)
+				}
+				
 				switch stype {
 				case "STRING":
 					return newStringProperty(input_name, optional, slice[1], index)
