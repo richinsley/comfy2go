@@ -802,7 +802,7 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 				if len(slice) < 2 {
 					return newUnknownProperty(input_name, optional, stype, index)
 				}
-
+				
 				switch stype {
 				case "STRING":
 					return newStringProperty(input_name, optional, slice[1], index)
