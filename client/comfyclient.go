@@ -9,10 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/richinsley/comfy2go/graphapi"
 )
 
@@ -37,7 +35,6 @@ type ComfyClient struct {
 	serverAddress         string
 	serverPort            int
 	clientid              string
-	webSocket             *WebSocketConnection
 	nodeobjects           *graphapi.NodeObjects
 	initialized           bool
 	queueditems           map[string]*QueueItem
@@ -58,23 +55,12 @@ func NewComfyClientWithTimeout(server_address string, server_port int, callbacks
 		serverPort:        server_port,
 		clientid:          cid,
 		queueditems:       make(map[string]*QueueItem),
-		webSocket: &WebSocketConnection{
-			WebSocketURL:   "ws://" + sbaseaddr + "/ws?clientId=" + cid,
-			ConnectionDone: make(chan bool),
-			MaxRetry:       retry, // Maximum number of retries
-			ManagerStarted: false,
-			BaseDelay:      1 * time.Second,
-			MaxDelay:       10 * time.Second,
-			Dialer:         *websocket.DefaultDialer,
-		},
-		initialized: false,
-		queuecount:  0,
-		callbacks:   callbacks,
-		timeout:     timeout,
-		httpclient:  &http.Client{},
+		initialized:       false,
+		queuecount:        0,
+		callbacks:         callbacks,
+		timeout:           timeout,
+		httpclient:        &http.Client{},
 	}
-	// golang uses mark-sweep GC, so this circular reference should be fine
-	retv.webSocket.Callback = retv
 	return retv
 }
 
@@ -88,46 +74,17 @@ func NewComfyClient(server_address string, server_port int, callbacks *ComfyClie
 		serverPort:        server_port,
 		clientid:          cid,
 		queueditems:       make(map[string]*QueueItem),
-		webSocket: &WebSocketConnection{
-			WebSocketURL:   "ws://" + sbaseaddr + "/ws?clientId=" + cid,
-			ConnectionDone: make(chan bool),
-			MaxRetry:       5, // Maximum number of retries
-			ManagerStarted: false,
-			BaseDelay:      1 * time.Second,
-			MaxDelay:       10 * time.Second,
-			Dialer:         *websocket.DefaultDialer,
-		},
-		initialized: false,
-		queuecount:  0,
-		callbacks:   callbacks,
-		timeout:     -1,
-		httpclient:  &http.Client{},
+		initialized:       false,
+		queuecount:        0,
+		callbacks:         callbacks,
+		timeout:           -1,
+		httpclient:        &http.Client{},
 	}
-	// golang uses mark-sweep GC, so this circular reference should be fine
-	retv.webSocket.Callback = retv
 	return retv
-}
-
-func (cc *ComfyClient) SetDialer(dialer *websocket.Dialer) {
-	// dereference the pointer and copy the values
-	cc.webSocket.Dialer = *dialer
-}
-
-func (cc *ComfyClient) OnMessage(message string) {
-	cc.OnWindowSocketMessage(message)
 }
 
 // IsInitialized returns true if the client's websocket is connected and initialized
 func (c *ComfyClient) IsInitialized() bool {
-	if c.initialized {
-		// ping the websocket to see if it is still connected
-		err := c.webSocket.Ping()
-		if err != nil {
-			c.webSocket.Conn.Close()
-			c.initialized = false
-			c.webSocket.IsConnected = false
-		}
-	}
 	return c.initialized
 }
 
@@ -145,15 +102,6 @@ func (c *ComfyClient) CheckConnection() error {
 
 // Init starts the websocket connection (if not already connected) and retrieves the collection of node objects
 func (c *ComfyClient) Init() error {
-	if !c.webSocket.IsConnected {
-		// as soon as the ws is connected, it will receive a "status" message of the current status
-		// of the ComfyUI server
-		err := c.webSocket.ConnectWithManager(c.timeout)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Get the object infos for the Comfy Server
 	object_infos, err := c.GetObjectInfos()
 	if err != nil {
@@ -259,7 +207,7 @@ func (c *ComfyClient) GetQueuedItem(prompt_id string) *QueueItem {
 
 // OnWindowSocketMessage processes each message received from the websocket connection to ComfyUI.
 // The messages are parsed, and translated into PromptMessage structs and placed into the correct QueuedItem's message channel.
-func (c *ComfyClient) OnWindowSocketMessage(msg string) {
+func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 	message := &WSStatusMessage{}
 	err := json.Unmarshal([]byte(msg), &message)
 	if err != nil {
@@ -275,7 +223,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		}
 	case "execution_start":
 		s := message.Data.(*WSMessageDataExecutionStart)
-		qi := c.GetQueuedItem(s.PromptID)
 		// update lastProcessedPromptID to indicate we are processing a new prompt
 		c.lastProcessedPromptID = s.PromptID
 		if qi != nil {
@@ -294,8 +241,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		// this is probably not usefull for us
 	case "executing":
 		s := message.Data.(*WSMessageDataExecuting)
-		qi := c.GetQueuedItem(s.PromptID)
-
 		if qi != nil {
 			if s.Node == nil {
 				// final node was processed
@@ -312,6 +257,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 					c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonFinished)
 				}
 				delete(c.queueditems, qi.PromptID)
+				qi.Close()
 				qi.Messages <- m
 			} else {
 				node := qi.Workflow.GetNodeById(*s.Node)
@@ -327,7 +273,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		}
 	case "progress":
 		s := message.Data.(*WSMessageDataProgress)
-		qi := c.GetQueuedItem(c.lastProcessedPromptID)
 		if qi != nil {
 			m := PromptMessage{
 				Type: "progress",
@@ -340,7 +285,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		}
 	case "executed":
 		s := message.Data.(*WSMessageDataExecuted)
-		qi := c.GetQueuedItem(s.PromptID)
 		if qi != nil {
 			// mdata := &PromptMessageData{
 			// 	NodeID: s.Node,
@@ -367,8 +311,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			qi.Messages <- m
 		}
 	case "execution_interrupted":
-		s := message.Data.(*WSMessageExecutionInterrupted)
-		qi := c.GetQueuedItem(s.PromptID)
 		if qi != nil {
 			m := PromptMessage{
 				Type: "stopped",
@@ -383,11 +325,11 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonInterrupted)
 			}
 			delete(c.queueditems, qi.PromptID)
+			qi.Close()
 			qi.Messages <- m
 		}
 	case "execution_error":
 		s := message.Data.(*WSMessageExecutionError)
-		qi := c.GetQueuedItem(s.PromptID)
 		if qi != nil {
 			nindex, _ := strconv.Atoi(s.Node) // the node id is serialized as a string
 			tnode := qi.Workflow.GetNodeById(nindex)
@@ -411,6 +353,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonError)
 			}
 			delete(c.queueditems, qi.PromptID)
+			qi.Close()
 			qi.Messages <- m
 		}
 	case "crystools.monitor":
@@ -419,3 +362,5 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 		slog.Warn("Unhandled message type: ", "type", message.Type)
 	}
 }
+
+
