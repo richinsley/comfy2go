@@ -81,7 +81,7 @@ func main() {
 	negative := simple_api.Properties["Negative"]
 	width.SetValue(1024)
 	height.SetValue(1024)
-	positive.SetValue("a dive bar, dimly lit, zombies, dancing, mosh pit, (kittens:1.5)")
+	positive.SetValue("a dive bar, dimly lit, zombies, dancing, mosh pit")
 	negative.SetValue("text, watermark")
 
 	// or we can set it directly

@@ -144,6 +144,9 @@ func (n *NodeObjects) PopulateInputProperties() {
 	var car interface{} = cdata
 
 	for _, o := range n.Objects {
+		// if o.DisplayName == "Int" {
+		// 	fmt.Println("here") // for debugging
+		// }
 		o.InputPropertiesByID = make(map[string]*Property)
 		o.InputProperties = make([]*Property, 0)
 		index := int(0)
