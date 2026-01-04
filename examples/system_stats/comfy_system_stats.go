@@ -11,8 +11,8 @@ import (
 
 // process CLI arguments
 func procCLI() (string, int) {
-	serverAddress := flag.String("address", "localhost", "Server address")
-	serverPort := flag.Int("port", 8188, "Server port")
+	serverAddress := flag.String("address", "192.168.0.28", "Server address")
+	serverPort := flag.Int("port", 9000, "Server port")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 		fmt.Printf("  %s [OPTIONS] filename", os.Args[0])

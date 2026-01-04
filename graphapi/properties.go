@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -134,7 +133,14 @@ func (b *BaseProperty) SetValue(v interface{}) error {
 	var vs string
 
 	// if v is of type float64 or float32 and the property is an int, convert it to an int
-	if b.parent.TypeString() == "INT" {
+	if b.parent.TypeString() == "FLOAT" {
+		if f, ok := v.(float64); ok {
+			// -1 uses the minimum number of digits necessary
+			vs = strconv.FormatFloat(f, 'f', -1, 64)
+		} else {
+			vs = fmt.Sprintf("%v", v)
+		}
+	} else if b.parent.TypeString() == "INT" {
 		if f, ok := v.(float64); ok {
 			vs = fmt.Sprintf("%d", int64(f))
 		} else if f, ok := v.(float32); ok {
@@ -262,15 +268,15 @@ func newBoolProperty(input_name string, optional bool, data interface{}, index i
 	c.parent = c
 
 	if d, ok := data.(map[string]interface{}); ok {
-		if val, ok := d["label_off"]; ok {
+		if val, ok := d["label_on"]; ok {
 			c.LabelOn = val.(string)
 		}
 
 		if val, ok := d["label_off"]; ok {
-			c.LabelOn = val.(string)
+			c.LabelOff = val.(string)
 		}
 
-		if val, ok := d["label_off"]; ok {
+		if val, ok := d["default"]; ok {
 			c.Default = val.(bool)
 		}
 	}
@@ -337,7 +343,8 @@ func newIntProperty(input_name string, optional bool, data interface{}, index in
 		// max?
 		if val, ok := d["max"]; ok {
 			floatVal := val.(float64)
-			if floatVal > float64(math.MaxInt64) {
+			// Check >= because float64(MaxInt64) is actually (MaxInt64 + 1)
+			if floatVal >= float64(math.MaxInt64) {
 				c.Max = math.MaxInt64
 			} else if floatVal < float64(math.MinInt64) {
 				c.Max = math.MinInt64
@@ -350,7 +357,7 @@ func newIntProperty(input_name string, optional bool, data interface{}, index in
 		// step?
 		if val, ok := d["step"]; ok {
 			floatVal := val.(float64)
-			if floatVal > float64(math.MaxInt64) {
+			if floatVal >= float64(math.MaxInt64) {
 				c.Step = math.MaxInt64
 			} else if floatVal < float64(math.MinInt64) {
 				c.Step = math.MinInt64
@@ -393,8 +400,12 @@ func (p *IntProperty) valueFromString(value string) interface{} {
 		return nil
 	}
 	if p.hasRange {
-		v = int64(math.Min(float64(p.Max), float64(v)))
-		v = int64(math.Max(float64(p.Min), float64(v)))
+		if v > p.Max {
+			v = p.Max
+		}
+		if v < p.Min {
+			v = p.Min
+		}
 	}
 	return v
 }
@@ -663,25 +674,25 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
 	}
 	c.parent = c
-
 	c.Values = make([]string, 0)
+
 	for _, v := range input {
 		if s, ok := v.(string); ok {
 			c.Values = append(c.Values, s)
 		} else if b, ok := v.(bool); ok {
-			// combo is a bool
+			// bool logic
 			c.IsBool = true
-			if b {
-				c.Values = append(c.Values, "true")
-			} else {
-				c.Values = append(c.Values, "false")
-			}
+			c.Values = append(c.Values, strconv.FormatBool(b))
+		} else if _, ok := v.(map[string]interface{}); ok {
+			// Ignore config dictionaries (e.g. {"default": "foo"})
+			// until we want to parse default values from them
+			continue
 		} else {
-			slog.Debug(fmt.Sprintf("TODO - Potential non-string combo entry <%s>", reflect.TypeOf(v).Name()))
+			// Use slog.Warn instead of Debug so you see it
+			slog.Warn(fmt.Sprintf("Ignored non-standard combo entry type: %T", v))
 		}
 	}
 	var retv Property = c
-
 	return &retv
 }
 
@@ -842,7 +853,7 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 				case "FLOAT":
 					return newFloatProperty(input_name, optional, slice[1], index)
 				case "BOOLEAN":
-					return newBoolProperty(input_name, optional, stype, index)
+					return newBoolProperty(input_name, optional, slice[1], index)
 				case "IMAGE":
 					return newUnknownProperty(input_name, optional, stype, index)
 				case "MASK:":

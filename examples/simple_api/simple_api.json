@@ -1,6 +1,8 @@
 {
-  "last_node_id": 15,
-  "last_link_id": 15,
+  "id": "6d6b3179-8d86-4862-932c-8c922a91ee0c",
+  "revision": 0,
+  "last_node_id": 20,
+  "last_link_id": 20,
   "nodes": [
     {
       "id": 8,
@@ -9,10 +11,10 @@
         1209,
         188
       ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
+      "size": [
+        210,
+        46
+      ],
       "flags": {},
       "order": 10,
       "mode": 0,
@@ -32,41 +34,18 @@
         {
           "name": "IMAGE",
           "type": "IMAGE",
+          "slot_index": 0,
           "links": [
             9
-          ],
-          "slot_index": 0
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
         "Node name for S&R": "VAEDecode"
-      }
-    },
-    {
-      "id": 9,
-      "type": "SaveImage",
-      "pos": [
-        1451,
-        189
-      ],
-      "size": {
-        "0": 210,
-        "1": 270
       },
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 9
-        }
-      ],
-      "properties": {},
-      "widgets_values": [
-        "ComfyUI"
-      ]
+      "widgets_values": []
     },
     {
       "id": 7,
@@ -75,12 +54,12 @@
         413,
         389
       ],
-      "size": {
-        "0": 425.27801513671875,
-        "1": 180.6060791015625
-      },
+      "size": [
+        425.27801513671875,
+        180.6060791015625
+      ],
       "flags": {},
-      "order": 8,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -91,30 +70,25 @@
         {
           "name": "text",
           "type": "STRING",
-          "link": 11,
           "widget": {
-            "name": "text",
-            "config": [
-              "STRING",
-              {
-                "multiline": true
-              }
-            ]
+            "name": "text"
           },
-          "slot_index": 1
+          "link": 20
         }
       ],
       "outputs": [
         {
           "name": "CONDITIONING",
           "type": "CONDITIONING",
+          "slot_index": 0,
           "links": [
             6
-          ],
-          "slot_index": 0
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
@@ -128,12 +102,12 @@
         415,
         186
       ],
-      "size": {
-        "0": 422.84503173828125,
-        "1": 164.31304931640625
-      },
+      "size": [
+        422.84503173828125,
+        164.31304931640625
+      ],
       "flags": {},
-      "order": 7,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -144,281 +118,29 @@
         {
           "name": "text",
           "type": "STRING",
-          "link": 12,
           "widget": {
-            "name": "text",
-            "config": [
-              "STRING",
-              {
-                "multiline": true
-              }
-            ]
+            "name": "text"
           },
-          "slot_index": 1
+          "link": 19
         }
       ],
       "outputs": [
         {
           "name": "CONDITIONING",
           "type": "CONDITIONING",
+          "slot_index": 0,
           "links": [
             4
-          ],
-          "slot_index": 0
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
         "beautiful scenery nature glass bottle landscape, , purple galaxy bottle,"
-      ]
-    },
-    {
-      "id": 5,
-      "type": "EmptyLatentImage",
-      "pos": [
-        413,
-        619
-      ],
-      "size": {
-        "0": 315,
-        "1": 106
-      },
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "link": 13,
-          "widget": {
-            "name": "width",
-            "config": [
-              "INT",
-              {
-                "default": 512,
-                "min": 64,
-                "max": 8192,
-                "step": 8
-              }
-            ]
-          },
-          "slot_index": 0
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "link": 14,
-          "widget": {
-            "name": "height",
-            "config": [
-              "INT",
-              {
-                "default": 512,
-                "min": 64,
-                "max": 8192,
-                "step": 8
-              }
-            ]
-          },
-          "slot_index": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            2
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "EmptyLatentImage"
-      },
-      "widgets_values": [
-        512,
-        512,
-        1
-      ]
-    },
-    {
-      "id": 11,
-      "type": "Text box",
-      "pos": [
-        -553,
-        326
-      ],
-      "size": {
-        "0": 400,
-        "1": 200
-      },
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            11
-          ],
-          "shape": 3
-        }
-      ],
-      "title": "Negative",
-      "properties": {
-        "Node name for S&R": "Text box"
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
-    {
-      "id": 12,
-      "type": "Text box",
-      "pos": [
-        -553,
-        88
-      ],
-      "size": {
-        "0": 400,
-        "1": 200
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            12
-          ],
-          "shape": 3
-        }
-      ],
-      "title": "Positive",
-      "properties": {
-        "Node name for S&R": "Text box"
-      },
-      "widgets_values": [
-        "beautiful scenery nature glass bottle landscape, , purple galaxy bottle,"
-      ]
-    },
-    {
-      "id": 13,
-      "type": "Integer",
-      "pos": [
-        -544,
-        573
-      ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "INT",
-          "type": "INT",
-          "links": [
-            13
-          ],
-          "shape": 3
-        }
-      ],
-      "title": "Width",
-      "properties": {
-        "Node name for S&R": "Integer"
-      },
-      "widgets_values": [
-        512
-      ]
-    },
-    {
-      "id": 14,
-      "type": "Integer",
-      "pos": [
-        -542,
-        677
-      ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "INT",
-          "type": "INT",
-          "links": [
-            14
-          ],
-          "shape": 3
-        }
-      ],
-      "title": "Height",
-      "properties": {
-        "Node name for S&R": "Integer"
-      },
-      "widgets_values": [
-        512
-      ]
-    },
-    {
-      "id": 4,
-      "type": "CheckpointLoaderSimple",
-      "pos": [
-        22,
-        48
-      ],
-      "size": {
-        "0": 315,
-        "1": 98
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            3,
-            5
-          ],
-          "slot_index": 1
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            8
-          ],
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CheckpointLoaderSimple"
-      },
-      "widgets_values": [
-        "v1-5-pruned-emaonly.ckpt"
       ]
     },
     {
@@ -459,32 +181,25 @@
         {
           "name": "seed",
           "type": "INT",
-          "link": 15,
           "widget": {
-            "name": "seed",
-            "config": [
-              "INT",
-              {
-                "default": 0,
-                "min": 0,
-                "max": 18446744073709552000
-              }
-            ]
+            "name": "seed"
           },
-          "slot_index": 4
+          "link": 18
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
+          "slot_index": 0,
           "links": [
             7
-          ],
-          "slot_index": 0
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
         "Node name for S&R": "KSampler"
       },
       "widgets_values": [
@@ -498,35 +213,310 @@
       ]
     },
     {
-      "id": 15,
-      "type": "Integer",
+      "id": 5,
+      "type": "EmptyLatentImage",
       "pos": [
-        -539,
-        792
+        413,
+        619
       ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
+      "size": [
+        315,
+        106
+      ],
       "flags": {},
-      "order": 5,
+      "order": 8,
       "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 16
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ]
+    },
+    {
+      "id": 18,
+      "type": "PrimitiveInt",
+      "pos": [
+        -553.473117835098,
+        1062.9743027998231
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "INT",
           "type": "INT",
           "links": [
-            15
-          ],
-          "shape": 3
+            18
+          ]
         }
       ],
       "title": "Seed",
       "properties": {
-        "Node name for S&R": "Integer"
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "PrimitiveInt"
       },
       "widgets_values": [
-        1
+        -199393134216250,
+        "randomize"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -537.7514536485899,
+        104.56841793430318
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "title": "Positive",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "beautiful scenery nature glass bottle landscape, , purple galaxy bottle,"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -539.8445973875678,
+        367.8812830687829
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "title": "Negative",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        22,
+        48
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 1,
+          "links": [
+            3,
+            5
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "v1-5-pruned-emaonly.ckpt"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "PrimitiveInt",
+      "pos": [
+        -556.0818521274256,
+        808.2340925374764
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "title": "Width",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        -1060148444677481,
+        "randomize"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "PrimitiveInt",
+      "pos": [
+        -551.2337618496495,
+        933.114741787918
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "title": "Height",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        1095159100654076,
+        "randomize"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        1451,
+        189
+      ],
+      "size": [
+        421.7230282738092,
+        395.4424120921517
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.7.0"
+      },
+      "widgets_values": [
+        "ComfyUI"
       ]
     }
   ],
@@ -604,59 +594,76 @@
       "IMAGE"
     ],
     [
-      11,
-      11,
+      16,
+      16,
       0,
-      7,
-      1,
-      "STRING"
+      5,
+      0,
+      "INT"
     ],
     [
-      12,
-      12,
+      17,
+      17,
+      0,
+      5,
+      1,
+      "INT"
+    ],
+    [
+      18,
+      18,
+      0,
+      3,
+      4,
+      "INT"
+    ],
+    [
+      19,
+      19,
       0,
       6,
       1,
       "STRING"
     ],
     [
-      13,
-      13,
+      20,
+      20,
       0,
-      5,
-      0,
-      "INT"
-    ],
-    [
-      14,
-      14,
-      0,
-      5,
+      7,
       1,
-      "INT"
-    ],
-    [
-      15,
-      15,
-      0,
-      3,
-      4,
-      "INT"
+      "STRING"
     ]
   ],
   "groups": [
     {
+      "id": 1,
       "title": "API",
       "bounding": [
         -577,
         17,
-        461,
-        871
+        473.3203056106702,
+        1178.8768187830688
       ],
-      "color": "#3f789e"
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
     }
   ],
   "config": {},
-  "extra": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 0.5076096687555953,
+      "offset": [
+        684.7640197861565,
+        242.77801201499133
+      ]
+    },
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
   "version": 0.4
 }
