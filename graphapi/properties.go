@@ -696,6 +696,35 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 	return &retv
 }
 
+// newComboPropertyFromConfig creates a ComboProperty from the new ComfyUI format:
+// ["COMBO", {"multiselect": false, "options": ["opt1", "opt2", ...]}]
+func newComboPropertyFromConfig(input_name string, optional bool, config interface{}, index int) *Property {
+	c := &ComboProperty{
+		BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
+	}
+	c.parent = c
+	c.Values = make([]string, 0)
+
+	if configMap, ok := config.(map[string]interface{}); ok {
+		// Look for "options" key in the config
+		if options, ok := configMap["options"]; ok {
+			if optionSlice, ok := options.([]interface{}); ok {
+				for _, v := range optionSlice {
+					if s, ok := v.(string); ok {
+						c.Values = append(c.Values, s)
+					} else if b, ok := v.(bool); ok {
+						c.IsBool = true
+						c.Values = append(c.Values, strconv.FormatBool(b))
+					}
+				}
+			}
+		}
+	}
+
+	var retv Property = c
+	return &retv
+}
+
 func (p *ComboProperty) TypeString() string {
 	return "COMBO"
 }
@@ -854,6 +883,9 @@ func NewPropertyFromInput(input_name string, optional bool, input *interface{}, 
 					return newFloatProperty(input_name, optional, slice[1], index)
 				case "BOOLEAN":
 					return newBoolProperty(input_name, optional, slice[1], index)
+				case "COMBO":
+					// New ComfyUI format: ["COMBO", {"multiselect": false, "options": ["opt1", "opt2", ...]}]
+					return newComboPropertyFromConfig(input_name, optional, slice[1], index)
 				case "IMAGE":
 					return newUnknownProperty(input_name, optional, stype, index)
 				case "MASK:":

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/richinsley/comfy2go/graphapi"
 )
 
@@ -98,7 +99,7 @@ func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, erro
 		// 	[1] promptID 	string,
 		// 	[2] prompt 		map[string]graphapi.PromptNode, // we'll ignore this
 		// 	[3] extra_data 	graphapi.PromptExtraData,       // the graph is in here
-		//  [4] outputs     []string 						// array of nodeIDs that have outputs
+		//  [4] outputs     []string 					// array of nodeIDs that have outputs
 		// ]
 		Prompt  []interface{}              `json:"prompt"`
 		Outputs map[string]internalOutputs `json:"outputs"`
@@ -269,15 +270,21 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 		return nil, err
 	}
 
-	// prevent a race where the ws may provide messages about a queued item before
-	// we add the item to our internal map
-	c.webSocket.LockRead()
-	defer c.webSocket.UnlockRead()
+	ws := &WebSocketConnection{
+		WebSocketURL: "ws://" + c.serverBaseAddress + "/ws?clientId=" + c.clientid,
+		Dialer:       *websocket.DefaultDialer,
+	}
+
+	err = ws.Connect(c.timeout)
+	if err != nil {
+		return nil, err
+	}
 
 	data, _ := json.Marshal(prompt)
 	resp, err := c.httpclient.Post(fmt.Sprintf("http://%s/prompt", c.serverBaseAddress), "application/json", strings.NewReader(string(data)))
 
 	if err != nil {
+		ws.Close()
 		return nil, err
 	}
 
@@ -285,12 +292,14 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 
 	// create the queue item
 	item := &QueueItem{
-		Workflow: graph,
-		Messages: make(chan PromptMessage),
+		Workflow:  graph,
+		Messages:  make(chan PromptMessage),
+		webSocket: ws,
 	}
 
 	err = json.Unmarshal(body, &item)
 	if err != nil {
+		ws.Close()
 		// mmm-k, is it one of these:
 		// {"error": {"type": "prompt_no_outputs",
 		//				"message": "Prompt has no outputs",
@@ -309,7 +318,14 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 			return nil, errors.New(perror.Error.Message)
 		}
 	}
+
 	c.queueditems[item.PromptID] = item
+
+	// Start handling messages in a new goroutine
+	go ws.HandleMessages(func(message string) {
+		c.OnWindowSocketMessage(message, item)
+	})
+
 	return item, nil
 }
 
