@@ -29,6 +29,7 @@ TODO.md
 .DS_Store
 examples/.DS_Store
 examples/img2img/*.png
+examples/simple_api/*.png
 jsontest
 
 ### jetbrain goland

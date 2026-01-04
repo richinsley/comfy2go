@@ -683,6 +683,11 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 			// bool logic
 			c.IsBool = true
 			c.Values = append(c.Values, strconv.FormatBool(b))
+		} else if f, ok := v.(float64); ok {
+			// handle float values
+			// 'f' format, -1 precision (auto-detect necessary digits), 64-bit
+			strVal := strconv.FormatFloat(f, 'f', -1, 64)
+			c.Values = append(c.Values, strVal)
 		} else if _, ok := v.(map[string]interface{}); ok {
 			// Ignore config dictionaries (e.g. {"default": "foo"})
 			// until we want to parse default values from them
@@ -695,6 +700,35 @@ func newComboProperty(input_name string, optional bool, input []interface{}, ind
 	var retv Property = c
 	return &retv
 }
+
+// func newComboProperty(input_name string, optional bool, input []interface{}, index int) *Property {
+//     c := &ComboProperty{
+//         BaseProperty: BaseProperty{name: input_name, optional: optional, serializable: true, index: index, target_value_index: -1},
+//     }
+//     c.parent = c
+//     c.Values = make([]string, 0)
+
+//     for _, v := range input {
+//         if s, ok := v.(string); ok {
+//             c.Values = append(c.Values, s)
+//         } else if b, ok := v.(bool); ok {
+//             c.IsBool = true
+//             c.Values = append(c.Values, strconv.FormatBool(b))
+//         } else if f, ok := v.(float64); ok {
+//             // handle float values
+//             // 'f' format, -1 precision (auto-detect necessary digits), 64-bit
+//             strVal := strconv.FormatFloat(f, 'f', -1, 64)
+//             c.Values = append(c.Values, strVal)
+//         } else if _, ok := v.(map[string]interface{}); ok {
+//             // Ignore config dictionaries
+//             continue
+//         } else {
+//             slog.Warn(fmt.Sprintf("Ignored non-standard combo entry type: %T for input %s", v, input_name))
+//         }
+//     }
+//     var retv Property = c
+//     return &retv
+// }
 
 // newComboPropertyFromConfig creates a ComboProperty from the new ComfyUI format:
 // ["COMBO", {"multiselect": false, "options": ["opt1", "opt2", ...]}]
