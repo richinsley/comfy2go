@@ -860,6 +860,22 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 	var vaeNameData interface{} = []interface{}{[]interface{}{"ae.safetensors"}}
 	var unetNameData interface{} = []interface{}{[]interface{}{"z_image_turbo_bf16.safetensors"}}
 	var weightDtypeData interface{} = []interface{}{[]interface{}{"default", "fp8_e4m3fn", "fp8_e5m2"}}
+	var conditioningData interface{} = []interface{}{"CONDITIONING"}
+	var clipData interface{} = []interface{}{"CLIP"}
+	var textData interface{} = []interface{}{"STRING", map[string]interface{}{"multiline": true}}
+	var modelData interface{} = []interface{}{"MODEL"}
+	conditioningOutput := []interface{}{"CONDITIONING"}
+	latentOutput := []interface{}{"LATENT"}
+	var widthData interface{} = []interface{}{"INT", map[string]interface{}{"default": float64(1280), "min": float64(16), "max": float64(16384)}}
+	var heightData interface{} = []interface{}{"INT", map[string]interface{}{"default": float64(720), "min": float64(16), "max": float64(16384)}}
+	var batchData interface{} = []interface{}{"INT", map[string]interface{}{"default": float64(1), "min": float64(1), "max": float64(4096)}}
+	var seedData interface{} = []interface{}{"INT", map[string]interface{}{"default": float64(0), "min": float64(0), "max": float64(4294967295)}}
+	var stepsData interface{} = []interface{}{"INT", map[string]interface{}{"default": float64(6), "min": float64(1), "max": float64(10000)}}
+	var cfgData interface{} = []interface{}{"FLOAT", map[string]interface{}{"default": 1.0, "min": 0.0, "max": 100.0}}
+	var samplerNameData interface{} = []interface{}{[]interface{}{"euler", "euler_ancestral", "heun", "heunpp2", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu", "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"}}
+	var schedulerData interface{} = []interface{}{[]interface{}{"normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"}}
+	var denoise interface{} = []interface{}{"FLOAT", map[string]interface{}{"default": 1.0, "min": 0.0, "max": 1.0}}
+	var shiftData interface{} = []interface{}{"FLOAT", map[string]interface{}{"default": 3.0, "min": 0.0, "max": 100.0}}
 
 	nodeObjects := &NodeObjects{
 		Objects: map[string]*NodeObject{
@@ -894,6 +910,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 						"clip_name": &clipNameData,
 						"type":      &typeData,
 					},
+					OrderedRequired: []string{"clip_name", "type"},
 				},
 				Output: &clipOutput,
 			},
@@ -905,6 +922,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 					Required: map[string]*interface{}{
 						"vae_name": &vaeNameData,
 					},
+					OrderedRequired: []string{"vae_name"},
 				},
 				Output: &vaeOutput,
 			},
@@ -917,6 +935,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 						"unet_name":    &unetNameData,
 						"weight_dtype": &weightDtypeData,
 					},
+					OrderedRequired: []string{"unet_name", "weight_dtype"},
 				},
 				Output: &modelOutput,
 			},
@@ -929,8 +948,82 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 						"samples": &latentData,
 						"vae":     &vaeData,
 					},
+					OrderedRequired: []string{"samples", "vae"},
 				},
 				Output: &imageOutput,
+			},
+			"ConditioningZeroOut": {
+				Name:        "ConditioningZeroOut",
+				DisplayName: "Conditioning (Zero Out)",
+				Category:    "conditioning",
+				Input: &NodeObjectInput{
+					Required: map[string]*interface{}{
+						"conditioning": &conditioningData,
+					},
+					OrderedRequired: []string{"conditioning"},
+				},
+				Output: &conditioningOutput,
+			},
+			"CLIPTextEncode": {
+				Name:        "CLIPTextEncode",
+				DisplayName: "CLIP Text Encode",
+				Category:    "conditioning",
+				Input: &NodeObjectInput{
+					Required: map[string]*interface{}{
+						"text": &textData,
+						"clip": &clipData,
+					},
+					OrderedRequired: []string{"text", "clip"},
+				},
+				Output: &conditioningOutput,
+			},
+			"EmptySD3LatentImage": {
+				Name:        "EmptySD3LatentImage",
+				DisplayName: "Empty SD3 Latent Image",
+				Category:    "latent",
+				Input: &NodeObjectInput{
+					Required: map[string]*interface{}{
+						"width":  &widthData,
+						"height": &heightData,
+						"batch":  &batchData,
+					},
+					OrderedRequired: []string{"width", "height", "batch"},
+				},
+				Output: &latentOutput,
+			},
+			"ModelSamplingAuraFlow": {
+				Name:        "ModelSamplingAuraFlow",
+				DisplayName: "Model Sampling AuraFlow",
+				Category:    "model_patches",
+				Input: &NodeObjectInput{
+					Required: map[string]*interface{}{
+						"model": &modelData,
+						"shift": &shiftData,
+					},
+					OrderedRequired: []string{"model", "shift"},
+				},
+				Output: &modelOutput,
+			},
+			"KSampler": {
+				Name:        "KSampler",
+				DisplayName: "KSampler",
+				Category:    "sampling",
+				Input: &NodeObjectInput{
+					Required: map[string]*interface{}{
+						"model":        &modelData,
+						"seed":         &seedData,
+						"steps":        &stepsData,
+						"cfg":          &cfgData,
+						"sampler_name": &samplerNameData,
+						"scheduler":    &schedulerData,
+						"positive":     &conditioningData,
+						"negative":     &conditioningData,
+						"latent_image": &latentData,
+						"denoise":      &denoise,
+					},
+					OrderedRequired: []string{"model", "seed", "steps", "cfg", "sampler_name", "scheduler", "positive", "negative", "latent_image", "denoise"},
+				},
+				Output: &latentOutput,
 			},
 		},
 	}

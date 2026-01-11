@@ -171,6 +171,19 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 		// Handle subgraph nodes specially
 		if n.IsSubgraph && n.SubgraphDef != nil {
 			t.createSubgraphProperties(n, &pindex)
+			// Also create properties for internal nodes of the subgraph
+			missing := t.createInternalNodeProperties(n.SubgraphDef, node_objects)
+			if missing != nil && len(*missing) > 0 {
+				if retv == nil {
+					retv = missing
+				} else {
+					for _, m := range *missing {
+						if !containsString(retv, m) {
+							*retv = append(*retv, m)
+						}
+					}
+				}
+			}
 			continue
 		}
 
@@ -399,6 +412,62 @@ func (t *Graph) createSubgraphProperties(n *GraphNode, pindex *int) {
 	// Set display name and description from subgraph
 	n.DisplayName = sg.Name
 	n.Description = ""
+}
+
+// createInternalNodeProperties creates properties for internal nodes of a subgraph
+func (t *Graph) createInternalNodeProperties(sg *SubgraphDefinition, node_objects *NodeObjects) *[]string {
+	var retv *[]string = nil
+
+	for _, n := range sg.Nodes {
+		// Skip virtual nodes (input/output nodes)
+		if n.IsVirtual() {
+			continue
+		}
+
+		pindex := 0
+		n.Properties = make(map[string]Property)
+
+		nobject := node_objects.GetNodeObjectByName(n.Type)
+
+		if nobject != nil {
+			// get the display name and description
+			n.DisplayName = nobject.DisplayName
+			n.Description = nobject.Description
+
+			// is this node an output node?
+			n.IsOutput = nobject.OutputNode
+
+			// get the settable properties and associate them with correct widgets
+			props := nobject.GetSettableProperties()
+			t.ProcessSettableProperties(n, &props, &pindex)
+		} else {
+			// Handle special node types
+			if n.Type == "PrimitiveNode" {
+				// PrimitiveNode handling would go here if needed
+			} else if n.Type == "Note" {
+				notewidgets := n.WidgetValues.([]interface{})
+				np := newStringProperty("text", false, nil, 0)
+				(*np).SetDirectValue(&notewidgets[0])
+				n.Properties["text"] = *np
+				continue
+			} else if n.Type == "Reroute" || n.Type == "MarkdownNote" {
+				// skip Reroute and MarkdownNote
+				continue
+			} else {
+				// Node type not found in node_objects
+				if retv == nil {
+					r := make([]string, 0)
+					retv = &r
+				}
+				if !containsString(retv, n.Type) {
+					r := append(*retv, n.Type)
+					retv = &r
+				}
+			}
+		}
+	}
+
+	return retv
 }
 
 func (t *Graph) ProcessSettableProperties(n *GraphNode, props *[]Property, pindex *int) {
