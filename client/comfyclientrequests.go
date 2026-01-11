@@ -259,13 +259,22 @@ func (c *ComfyClient) GetObjectInfos() (*graphapi.NodeObjects, error) {
 	return result, nil
 }
 
-func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
+func (c *ComfyClient) GeneratePrompt(graph *graphapi.Graph) (*graphapi.Prompt, error) {
 	err := c.CheckConnection()
 	if err != nil {
 		return nil, err
 	}
 
 	prompt, err := graph.GraphToPrompt(c.clientid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &prompt, nil
+}
+
+func (c *ComfyClient) QueueRawPrompt(graph *graphapi.Graph, prompt *graphapi.Prompt) (*QueueItem, error) {
+	err := c.CheckConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -327,6 +336,20 @@ func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
 	})
 
 	return item, nil
+}
+
+func (c *ComfyClient) QueuePrompt(graph *graphapi.Graph) (*QueueItem, error) {
+	err := c.CheckConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	prompt, err := graph.GraphToPrompt(c.clientid)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.QueueRawPrompt(graph, &prompt)
 }
 
 func (c *ComfyClient) Interrupt() error {

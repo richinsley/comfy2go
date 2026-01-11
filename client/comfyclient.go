@@ -215,6 +215,8 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 		slog.Error("Deserializing Status Message:", "error", err)
 	}
 
+	// fmt.Println(msg)
+
 	switch message.Type {
 	case "status":
 		s := message.Data.(*WSMessageDataStatus)
@@ -258,10 +260,24 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 					c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonFinished)
 				}
 				delete(c.queueditems, qi.PromptID)
-				qi.Close()
+				// qi.Close()
 				qi.Messages <- m
 			} else {
-				node := qi.Workflow.GetNodeById(*s.Node)
+				// Try to find the node in the workflow
+				// For compound IDs like "57:8", parse the first part
+				var node *graphapi.GraphNode
+				nodeIDStr := *s.Node
+				if nodeID, err := strconv.Atoi(nodeIDStr); err == nil {
+					// Simple integer ID
+					node = qi.Workflow.GetNodeById(nodeID)
+				} else if strings.Contains(nodeIDStr, ":") {
+					// Compound ID like "57:8" - try to get the instance node
+					parts := strings.Split(nodeIDStr, ":")
+					if instanceID, err := strconv.Atoi(parts[0]); err == nil {
+						node = qi.Workflow.GetNodeById(instanceID)
+					}
+				}
+
 				if node != nil {
 					m := PromptMessage{
 						Type: "executing",
@@ -276,7 +292,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 						Type: "executing",
 						Message: &PromptMessageExecuting{
 							NodeID: *s.Node,
-							Title:  fmt.Sprintf("%d", *s.Node),
+							Title:  *s.Node,
 						},
 					}
 					qi.Messages <- m
@@ -343,16 +359,31 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 	case "execution_error":
 		s := message.Data.(*WSMessageExecutionError)
 		if qi != nil {
-			nindex, _ := strconv.Atoi(s.Node) // the node id is serialized as a string
-			tnode := qi.Workflow.GetNodeById(nindex)
+			// Try to find the node in the workflow
+			var tnode *graphapi.GraphNode
+			if nodeID, err := strconv.Atoi(s.Node); err == nil {
+				tnode = qi.Workflow.GetNodeById(nodeID)
+			} else if strings.Contains(s.Node, ":") {
+				// Compound ID - try to get the instance node
+				parts := strings.Split(s.Node, ":")
+				if instanceID, err := strconv.Atoi(parts[0]); err == nil {
+					tnode = qi.Workflow.GetNodeById(instanceID)
+				}
+			}
+
+			nodeName := s.Node
+			if tnode != nil {
+				nodeName = tnode.Title
+			}
+
 			m := PromptMessage{
 				Type: "stopped",
 				Message: &PromptMessageStopped{
 					QueueItem: qi,
 					Exception: &PromptMessageStoppedException{
-						NodeID:           nindex,
+						NodeID:           s.Node,
 						NodeType:         s.NodeType,
-						NodeName:         tnode.Title,
+						NodeName:         nodeName,
 						ExceptionMessage: s.ExceptionMessage,
 						ExceptionType:    s.ExceptionType,
 						Traceback:        s.Traceback,

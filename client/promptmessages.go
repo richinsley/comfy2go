@@ -12,6 +12,10 @@ type PromptMessage struct {
 // progress
 // data
 // stopped
+//
+// new messages:
+// progress_state
+// execution_success
 
 type PromptMessageQueued struct {
 }
@@ -29,7 +33,7 @@ func (p *PromptMessage) ToPromptMessageStarted() *PromptMessageStarted {
 }
 
 type PromptMessageExecuting struct {
-	NodeID int
+	NodeID string
 	Title  string
 }
 
@@ -47,7 +51,7 @@ func (p *PromptMessage) ToPromptMessageProgress() *PromptMessageProgress {
 }
 
 type PromptMessageData struct {
-	NodeID int
+	NodeID string
 	Data   map[string][]DataOutput
 }
 
@@ -61,7 +65,7 @@ type PromptMessageStopped struct {
 }
 
 type PromptMessageStoppedException struct {
-	NodeID           int
+	NodeID           string
 	NodeType         string
 	NodeName         string
 	ExceptionMessage string

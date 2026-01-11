@@ -139,7 +139,7 @@ func (sg *SubgraphDefinition) GetSubgraphForNode(node *GraphNode) *SubgraphDefin
 // ExpandedNode represents a node after subgraph expansion with remapped IDs
 type ExpandedNode struct {
 	OriginalID    int
-	ExpandedID    int
+	ExpandedID    string              // Compound ID like "57:30" for subgraph internals, or "9" for top-level
 	Node          *GraphNode
 	SubgraphDef   *SubgraphDefinition // If this node is from a subgraph
 	InstanceNode  *GraphNode          // The subgraph instance node in parent
@@ -150,22 +150,22 @@ type ExpandedNode struct {
 // SubgraphExpander handles recursive expansion of subgraphs for prompt generation
 type SubgraphExpander struct {
 	Graph            *Graph
-	ExpandedNodes    map[int]*ExpandedNode
+	ExpandedNodes    map[string]*ExpandedNode // Keyed by string ID (compound for subgraphs)
 	NextID           int
-	OutputResolution map[string][]int
+	OutputResolution map[string][]interface{} // Maps "instanceID:slot" -> [expandedNodeID (string), slot (int)]
 
-	// Track ID mappings per subgraph instance: instanceNodeID -> (internalID -> expandedID)
-	InstanceIDMaps map[int]map[int]int
+	// Track ID mappings per subgraph instance: instanceNodeID -> (internalID -> compound string expandedID)
+	InstanceIDMaps map[int]map[int]string
 }
 
 // NewSubgraphExpander creates a new expander for the given graph
 func NewSubgraphExpander(g *Graph) *SubgraphExpander {
 	return &SubgraphExpander{
 		Graph:            g,
-		ExpandedNodes:    make(map[int]*ExpandedNode),
+		ExpandedNodes:    make(map[string]*ExpandedNode),
 		NextID:           g.LastNodeID + 1,
-		OutputResolution: make(map[string][]int),
-		InstanceIDMaps:   make(map[int]map[int]int),
+		OutputResolution: make(map[string][]interface{}),
+		InstanceIDMaps:   make(map[int]map[int]string),
 	}
 }
 
@@ -181,10 +181,11 @@ func (e *SubgraphExpander) ExpandAll() error {
 				return err
 			}
 		} else {
-			// Regular node - just assign an expanded ID (same as original)
-			e.ExpandedNodes[node.ID] = &ExpandedNode{
+			// Regular node - just assign an expanded ID (same as original, as string)
+			nodeIDStr := strconv.Itoa(node.ID)
+			e.ExpandedNodes[nodeIDStr] = &ExpandedNode{
 				OriginalID: node.ID,
-				ExpandedID: node.ID,
+				ExpandedID: nodeIDStr,
 				Node:       node,
 			}
 		}
@@ -204,10 +205,12 @@ func (e *SubgraphExpander) expandSubgraphNode(
 	}
 
 	// Create ID mapping for this subgraph instance
-	idMap := make(map[int]int)
+	// Use compound IDs like "57:30" for internal nodes
+	idMap := make(map[int]string)
 	for _, internalNode := range sg.Nodes {
-		idMap[internalNode.ID] = e.NextID
-		e.NextID++
+		// Create compound ID: "instanceID:internalID"
+		compoundID := fmt.Sprintf("%d:%d", instanceNode.ID, internalNode.ID)
+		idMap[internalNode.ID] = compoundID
 	}
 
 	// Store the ID map for this instance
@@ -274,11 +277,12 @@ func (e *SubgraphExpander) expandSubgraphNode(
 						// Resolve through nested subgraph's output
 						key := fmt.Sprintf("%d:%d", originNode.ID, link.OriginSlot)
 						if resolved, ok := e.OutputResolution[key]; ok {
-							expanded.InputMapping[i] = resolved
+							// resolved is now the string node ID
+							expanded.InputMapping[i] = []interface{}{resolved, link.OriginSlot}
 						}
 					} else {
-						// Regular internal link - remap to expanded IDs
-						expanded.InputMapping[i] = []int{idMap[link.OriginID], link.OriginSlot}
+						// Regular internal link - remap to expanded IDs (now string compound IDs)
+						expanded.InputMapping[i] = []interface{}{idMap[link.OriginID], link.OriginSlot}
 					}
 				}
 			}
@@ -301,7 +305,7 @@ func (e *SubgraphExpander) expandSubgraphNode(
 					e.OutputResolution[key] = resolved
 				}
 			} else {
-				e.OutputResolution[key] = []int{idMap[link.OriginID], link.OriginSlot}
+				e.OutputResolution[key] = []interface{}{idMap[link.OriginID], link.OriginSlot}
 			}
 		}
 	}
@@ -371,7 +375,7 @@ func (e *SubgraphExpander) buildInputMapping(
 func (e *SubgraphExpander) buildNestedInputMapping(
 	nestedNode *GraphNode,
 	parentSg *SubgraphDefinition,
-	parentIdMap map[int]int,
+	parentIdMap map[int]string,
 	parentInputMapping map[int]interface{},
 ) map[int]interface{} {
 	nestedSg := nestedNode.SubgraphDef
@@ -394,8 +398,8 @@ func (e *SubgraphExpander) buildNestedInputMapping(
 					mapping[i] = val
 				}
 			} else {
-				// Connected to sibling node in parent
-				mapping[i] = []int{parentIdMap[link.OriginID], link.OriginSlot}
+				// Connected to sibling node in parent - parentIdMap now returns string IDs
+				mapping[i] = []interface{}{parentIdMap[link.OriginID], link.OriginSlot}
 			}
 			break
 		}
@@ -452,8 +456,8 @@ func (e *SubgraphExpander) getWidgetValue(node *GraphNode, name string, index in
 }
 
 // ToPromptNodes converts all expanded nodes to prompt format
-func (e *SubgraphExpander) ToPromptNodes() map[int]PromptNode {
-	result := make(map[int]PromptNode)
+func (e *SubgraphExpander) ToPromptNodes() map[string]PromptNode {
+	result := make(map[string]PromptNode)
 
 	for expandedID, expanded := range e.ExpandedNodes {
 		node := expanded.Node
@@ -499,9 +503,9 @@ func (e *SubgraphExpander) ToPromptNodes() map[int]PromptNode {
 					if link != nil && link.OriginID != expanded.SubgraphDef.InputNode.ID {
 						// Need to find the expanded ID for the origin node
 						originExpandedID := e.findExpandedID(expanded.SubgraphDef, expanded.InstanceNode, link.OriginID)
-						if originExpandedID != 0 {
+						if originExpandedID != "" {
 							linfo := make([]interface{}, 2)
-							linfo[0] = strconv.Itoa(originExpandedID)
+							linfo[0] = originExpandedID // Already a string
 							linfo[1] = link.OriginSlot
 							pn.Inputs[slot.Name] = linfo
 						}
@@ -520,24 +524,25 @@ func (e *SubgraphExpander) ToPromptNodes() map[int]PromptNode {
 				}
 
 				originNode := e.Graph.GetNodeById(link.OriginID)
-				var resolvedID int
+				var resolvedIDStr string
 				var resolvedSlot int
 
 				if originNode != nil && originNode.IsSubgraph {
 					key := fmt.Sprintf("%d:%d", link.OriginID, link.OriginSlot)
 					if resolved, ok := e.OutputResolution[key]; ok {
-						resolvedID = resolved[0]
-						resolvedSlot = resolved[1]
+						// resolved is []interface{}{nodeIDString, slot}
+						resolvedIDStr = resolved[0].(string)
+						resolvedSlot = resolved[1].(int)
 					} else {
 						continue
 					}
 				} else {
-					resolvedID = link.OriginID
+					resolvedIDStr = strconv.Itoa(link.OriginID)
 					resolvedSlot = link.OriginSlot
 				}
 
 				linfo := make([]interface{}, 2)
-				linfo[0] = strconv.Itoa(resolvedID)
+				linfo[0] = resolvedIDStr
 				linfo[1] = resolvedSlot
 				pn.Inputs[slot.Name] = linfo
 			}
@@ -550,7 +555,7 @@ func (e *SubgraphExpander) ToPromptNodes() map[int]PromptNode {
 }
 
 // findExpandedID finds the expanded ID for an internal node within a subgraph instance
-func (e *SubgraphExpander) findExpandedID(sg *SubgraphDefinition, instanceNode *GraphNode, internalNodeID int) int {
+func (e *SubgraphExpander) findExpandedID(sg *SubgraphDefinition, instanceNode *GraphNode, internalNodeID int) string {
 	// Look through expanded nodes to find one that matches
 	for expandedID, expanded := range e.ExpandedNodes {
 		if expanded.SubgraphDef == sg &&
@@ -559,5 +564,5 @@ func (e *SubgraphExpander) findExpandedID(sg *SubgraphDefinition, instanceNode *
 			return expandedID
 		}
 	}
-	return 0
+	return ""
 }

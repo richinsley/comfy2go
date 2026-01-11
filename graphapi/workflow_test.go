@@ -2,7 +2,6 @@ package graphapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -403,24 +402,24 @@ func TestGraphToPromptWithSubgraphs(t *testing.T) {
 	}
 
 	// Verify that original subgraph node ID (57) is NOT in the prompt
-	if _, exists := prompt.Nodes[57]; exists {
+	if _, exists := prompt.Nodes["57"]; exists {
 		t.Error("Subgraph instance node should not appear in prompt, only its expanded internals")
 	}
 
 	// Verify all prompt nodes have valid inputs
 	for nodeID, pnode := range prompt.Nodes {
 		if pnode.Inputs == nil {
-			t.Errorf("Node %d has nil inputs", nodeID)
+			t.Errorf("Node %s has nil inputs", nodeID)
 		}
 		// Check that link references are strings
 		for inputName, inputVal := range pnode.Inputs {
 			if arr, ok := inputVal.([]interface{}); ok {
 				if len(arr) != 2 {
-					t.Errorf("Node %d input %s: link reference should have 2 elements, got %d", nodeID, inputName, len(arr))
+					t.Errorf("Node %s input %s: link reference should have 2 elements, got %d", nodeID, inputName, len(arr))
 				}
 				// First element should be string (node ID)
 				if _, ok := arr[0].(string); !ok {
-					t.Errorf("Node %d input %s: link reference first element should be string, got %T", nodeID, inputName, arr[0])
+					t.Errorf("Node %s input %s: link reference first element should be string, got %T", nodeID, inputName, arr[0])
 				}
 			}
 		}
@@ -502,23 +501,23 @@ func TestGraphToPromptWithoutSubgraphs(t *testing.T) {
 	}
 
 	// Verify node IDs match original
-	if _, exists := prompt.Nodes[1]; !exists {
+	if _, exists := prompt.Nodes["1"]; !exists {
 		t.Error("Expected node 1 in prompt")
 	}
-	if _, exists := prompt.Nodes[2]; !exists {
+	if _, exists := prompt.Nodes["2"]; !exists {
 		t.Error("Expected node 2 in prompt")
 	}
 
 	// Verify class types
-	if prompt.Nodes[1].ClassType != "KSampler" {
-		t.Errorf("Expected node 1 to be KSampler, got %s", prompt.Nodes[1].ClassType)
+	if prompt.Nodes["1"].ClassType != "KSampler" {
+		t.Errorf("Expected node 1 to be KSampler, got %s", prompt.Nodes["1"].ClassType)
 	}
-	if prompt.Nodes[2].ClassType != "VAEDecode" {
-		t.Errorf("Expected node 2 to be VAEDecode, got %s", prompt.Nodes[2].ClassType)
+	if prompt.Nodes["2"].ClassType != "VAEDecode" {
+		t.Errorf("Expected node 2 to be VAEDecode, got %s", prompt.Nodes["2"].ClassType)
 	}
 
 	// Verify link in node 2 points to node 1
-	samplesInput := prompt.Nodes[2].Inputs["samples"]
+	samplesInput := prompt.Nodes["2"].Inputs["samples"]
 	if samplesInput == nil {
 		t.Fatal("Expected samples input in VAEDecode")
 	}
@@ -562,7 +561,7 @@ func TestPromptStructure(t *testing.T) {
 	t.Logf("Generated prompt structure:\n%s", string(promptJSON))
 
 	// Verify SaveImage node (ID 9) exists and has correct input link
-	saveImageNode, exists := prompt.Nodes[9]
+	saveImageNode, exists := prompt.Nodes["9"]
 	if !exists {
 		t.Fatal("Expected SaveImage node (ID 9) in prompt")
 	}
@@ -594,15 +593,9 @@ func TestPromptStructure(t *testing.T) {
 	}
 
 	// Verify the linked node exists and is VAEDecode
-	linkedNodeIDInt := 0
-	_, err = fmt.Sscanf(linkedNodeID, "%d", &linkedNodeIDInt)
-	if err != nil {
-		t.Fatalf("Failed to parse linked node ID: %v", err)
-	}
-
-	linkedNode, exists := prompt.Nodes[linkedNodeIDInt]
+	linkedNode, exists := prompt.Nodes[linkedNodeID]
 	if !exists {
-		t.Fatalf("Linked node %d should exist in prompt", linkedNodeIDInt)
+		t.Fatalf("Linked node %s should exist in prompt", linkedNodeID)
 	}
 
 	if linkedNode.ClassType != "VAEDecode" {
@@ -790,7 +783,7 @@ func TestSubgraphPropertiesInPrompt(t *testing.T) {
 	// The subgraph's internal EmptySD3LatentImage node should have width/height from the instance
 	// Find the EmptySD3LatentImage in the prompt
 	var latentNode *PromptNode
-	var latentNodeID int
+	var latentNodeID string
 	for nodeID, pnode := range prompt.Nodes {
 		if pnode.ClassType == "EmptySD3LatentImage" {
 			latentNode = &pnode
@@ -809,7 +802,7 @@ func TestSubgraphPropertiesInPrompt(t *testing.T) {
 	heightInput := latentNode.Inputs["height"]
 
 	if widthInput == nil {
-		t.Errorf("EmptySD3LatentImage node %d should have width input", latentNodeID)
+		t.Errorf("EmptySD3LatentImage node %s should have width input", latentNodeID)
 	} else {
 		// The value should be 1280 (from subgraph instance)
 		widthVal := widthInput
@@ -819,7 +812,7 @@ func TestSubgraphPropertiesInPrompt(t *testing.T) {
 	}
 
 	if heightInput == nil {
-		t.Errorf("EmptySD3LatentImage node %d should have height input", latentNodeID)
+		t.Errorf("EmptySD3LatentImage node %s should have height input", latentNodeID)
 	} else {
 		// The value should be 720 (from subgraph instance)
 		heightVal := heightInput
@@ -1046,7 +1039,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 
 	// Find VAELoader in the prompt (should be expanded from subgraph)
 	var vaeLoaderNode *PromptNode
-	var vaeLoaderNodeID int
+	var vaeLoaderNodeID string
 	for nodeID, pnode := range prompt.Nodes {
 		if pnode.ClassType == "VAELoader" {
 			vaeLoaderNode = &pnode
@@ -1062,7 +1055,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 	// Verify VAELoader has vae_name input
 	vaeNameInput := vaeLoaderNode.Inputs["vae_name"]
 	if vaeNameInput == nil {
-		t.Errorf("VAELoader node %d should have vae_name input", vaeLoaderNodeID)
+		t.Errorf("VAELoader node %s should have vae_name input", vaeLoaderNodeID)
 	} else {
 		// The value should be "ae.safetensors" from the subgraph's internal node widget_values
 		if vaeNameInput != "ae.safetensors" {
@@ -1072,7 +1065,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 
 	// Find CLIPLoader in the prompt
 	var clipLoaderNode *PromptNode
-	var clipLoaderNodeID int
+	var clipLoaderNodeID string
 	for nodeID, pnode := range prompt.Nodes {
 		if pnode.ClassType == "CLIPLoader" {
 			clipLoaderNode = &pnode
@@ -1088,7 +1081,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 	// Verify CLIPLoader has clip_name and type inputs
 	clipNameInput := clipLoaderNode.Inputs["clip_name"]
 	if clipNameInput == nil {
-		t.Errorf("CLIPLoader node %d should have clip_name input", clipLoaderNodeID)
+		t.Errorf("CLIPLoader node %s should have clip_name input", clipLoaderNodeID)
 	} else {
 		if clipNameInput != "qwen_3_4b.safetensors" {
 			t.Errorf("Expected clip_name to be 'qwen_3_4b.safetensors', got %v", clipNameInput)
@@ -1097,7 +1090,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 
 	typeInput := clipLoaderNode.Inputs["type"]
 	if typeInput == nil {
-		t.Errorf("CLIPLoader node %d should have type input", clipLoaderNodeID)
+		t.Errorf("CLIPLoader node %s should have type input", clipLoaderNodeID)
 	} else {
 		if typeInput != "lumina2" {
 			t.Errorf("Expected type to be 'lumina2', got %v", typeInput)

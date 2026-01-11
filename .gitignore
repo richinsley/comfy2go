@@ -43,3 +43,4 @@ examples/subgraph_example
 examples/subgraph_example.go
 examples/test_with_server.go
 examples/wanvideo/
+examples/rawprompt/

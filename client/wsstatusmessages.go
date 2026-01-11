@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strconv"
 )
 
 type WSStatusMessage struct {
@@ -90,33 +89,8 @@ type WSMessageDataExecutionCached struct {
 */
 
 type WSMessageDataExecuting struct {
-	Node     *int   `json:"node"`
-	PromptID string `json:"prompt_id"`
-}
-
-func (mde *WSMessageDataExecuting) UnmarshalJSON(b []byte) error {
-	var temp struct {
-		Node     *string `json:"node"`
-		PromptID string  `json:"prompt_id"`
-	}
-	if err := json.Unmarshal(b, &temp); err != nil {
-		return err
-	}
-
-	mde.PromptID = temp.PromptID
-
-	// Convert string to int
-	if temp.Node != nil {
-		i, err := strconv.Atoi(*temp.Node)
-		if err != nil {
-			return err
-		}
-		mde.Node = &i
-	} else {
-		mde.Node = nil
-	}
-
-	return nil
+	Node     *string `json:"node"`
+	PromptID string  `json:"prompt_id"`
 }
 
 /*
@@ -133,7 +107,7 @@ type WSMessageDataProgress struct {
 */
 
 type WSMessageDataExecuted struct {
-	Node     int                      `json:"node"`
+	Node     string                   `json:"node"`
 	Output   map[string]*[]DataOutput `json:"output"`
 	PromptID string                   `json:"prompt_id"`
 }
@@ -210,13 +184,7 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 	}
 
 	mde.PromptID = temp.PromptID
-
-	// Convert string to int
-	i, err := strconv.Atoi(temp.Node)
-	if err != nil {
-		return err
-	}
-	mde.Node = i
+	mde.Node = temp.Node
 
 	return nil
 }

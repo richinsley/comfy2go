@@ -2,10 +2,10 @@ package graphapi
 
 // Prompt is the data that is enqueued to an instance of ComfyUI
 type Prompt struct {
-	ClientID  string             `json:"client_id"`
-	Nodes     map[int]PromptNode `json:"prompt"`
-	ExtraData PromptExtraData    `json:"extra_data"`
-	PID       string             `json:"pid"`
+	ClientID  string                `json:"client_id"`
+	Nodes     map[string]PromptNode `json:"prompt"`
+	ExtraData PromptExtraData       `json:"extra_data"`
+	PID       string                `json:"pid"`
 }
 
 type PromptNode struct {

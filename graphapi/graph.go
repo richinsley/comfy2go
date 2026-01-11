@@ -3,6 +3,7 @@ package graphapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -358,56 +359,88 @@ func (t *Graph) createSubgraphProperties(n *GraphNode, pindex *int) {
 		widgetValues = make([]interface{}, 0)
 	}
 
+	// Extract proxyWidgets mapping: [[nodeId, widgetName], ...]
+	// For subgraph inputs, nodeId will be "-1" or -10
+	proxyWidgetsMap := make(map[string]int) // map[widgetName]widgetIndex
+	if n.InternalProperties != nil {
+		if pw, ok := (*n.InternalProperties)["proxyWidgets"]; ok {
+			if pwArray, ok := pw.([]interface{}); ok {
+				for widgetIndex, entry := range pwArray {
+					if entryArray, ok := entry.([]interface{}); ok {
+						if len(entryArray) >= 2 {
+							// Parse node ID
+							var nodeID string
+							switch v := entryArray[0].(type) {
+							case string:
+								nodeID = v
+							case float64:
+								nodeID = fmt.Sprintf("%.0f", v)
+							}
+
+							// Only map entries targeting "-1" (subgraph inputs)
+							if nodeID == "-1" || nodeID == "-10" {
+								if widgetName, ok := entryArray[1].(string); ok {
+									proxyWidgetsMap[widgetName] = widgetIndex
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Create a property for each subgraph input
-	for _, input := range sg.Inputs {
+	for inputIndex, input := range sg.Inputs {
 		propName := input.Name
 		propType := input.Type
+
+		// Determine which widget index to use for this property
+		// If proxyWidgets specifies a mapping, use that; otherwise use sequential index
+		targetWidgetIndex := inputIndex
+		if mappedIndex, found := proxyWidgetsMap[propName]; found {
+			targetWidgetIndex = mappedIndex
+		}
 
 		// Create property based on type and link it to the node's widget
 		var prop Property
 		switch propType {
 		case "STRING":
-			np := newStringProperty(propName, false, nil, *pindex)
+			np := newStringProperty(propName, false, nil, targetWidgetIndex)
 			(*np).UpdateParent(*np)
-			(*np).SetTargetWidget(n, *pindex)
+			(*np).SetTargetWidget(n, targetWidgetIndex)
 			prop = *np
 
 		case "INT":
-			np := newIntProperty(propName, false, nil, *pindex)
+			np := newIntProperty(propName, false, nil, targetWidgetIndex)
 			(*np).UpdateParent(*np)
-			(*np).SetTargetWidget(n, *pindex)
+			(*np).SetTargetWidget(n, targetWidgetIndex)
 			prop = *np
 
-			// Check if this is a seed property - needs special handling for control_after_generate
-			if propName == "seed" || propName == "noise_seed" {
-				*pindex++
-				// The next widget value (if it exists) is control_after_generate
-				// We'll handle this similar to how regular nodes handle it
-			}
-
 		case "FLOAT":
-			np := newFloatProperty(propName, false, nil, *pindex)
+			np := newFloatProperty(propName, false, nil, targetWidgetIndex)
 			(*np).UpdateParent(*np)
-			(*np).SetTargetWidget(n, *pindex)
+			(*np).SetTargetWidget(n, targetWidgetIndex)
 			prop = *np
 
 		case "BOOLEAN":
-			np := newBoolProperty(propName, false, nil, *pindex)
+			np := newBoolProperty(propName, false, nil, targetWidgetIndex)
 			(*np).UpdateParent(*np)
-			(*np).SetTargetWidget(n, *pindex)
+			(*np).SetTargetWidget(n, targetWidgetIndex)
 			prop = *np
 
 		default:
-			// For unknown types, create an unknown property
-			np := newUnknownProperty(propName, false, propType, *pindex)
+			// For unknown types (including COMBO), create an unknown property
+			np := newUnknownProperty(propName, false, propType, targetWidgetIndex)
 			(*np).UpdateParent(*np)
-			(*np).SetTargetWidget(n, *pindex)
+			(*np).SetTargetWidget(n, targetWidgetIndex)
 			prop = *np
 		}
 
 		n.Properties[propName] = prop
-		*pindex++
 	}
+
+	*pindex += len(sg.Inputs)
 
 	// Set display name and description from subgraph
 	n.DisplayName = sg.Name
@@ -687,7 +720,7 @@ func (t *Graph) SaveGraphToFile(path string) error {
 func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 	p := Prompt{
 		ClientID: clientID,
-		Nodes:    make(map[int]PromptNode),
+		Nodes:    make(map[string]PromptNode),
 		// PID:      "floopy-thingy-ma-bob", // we can add additionl information that is ignored by ComfyUI
 	}
 
@@ -756,7 +789,7 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 					}
 				}
 			}
-			p.Nodes[node.ID] = pn
+			p.Nodes[strconv.Itoa(node.ID)] = pn
 		}
 	}
 

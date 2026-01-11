@@ -110,7 +110,7 @@ func main() {
 			qm := msg.ToPromptMessageExecuting()
 			// store the node's title so we can use it in the progress bar
 			currentNodeTitle = qm.Title
-			log.Printf("Executing Node: %d\n", qm.NodeID)
+			log.Printf("Executing Node: %s\n", qm.NodeID)
 		case "progress":
 			// update our progress bar
 			qm := msg.ToPromptMessageProgress()
