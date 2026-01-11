@@ -44,6 +44,10 @@ func (sm *WSStatusMessage) UnmarshalJSON(b []byte) error {
 		sm.Data = &WSMessageExecutionInterrupted{}
 	case "execution_error":
 		sm.Data = &WSMessageExecutionError{}
+	case "progress_state":
+		sm.Data = &WSMessageDataProgressState{}
+	case "execution_success":
+		sm.Data = &WSMessageDataExecutionSuccess{}
 	default:
 		// Handle unknown data types or return a dedicated error here
 		sm.Data = nil
@@ -219,3 +223,32 @@ type WSMessageExecutionError struct {
 	CurrentInputs    map[string]interface{} `json:"current_inputs"`
 	CurrentOutputs   map[int]interface{}    `json:"current_outputs"`
 }
+
+type NodeProgressState struct {
+	Value         float64 `json:"value"`
+	Max           float64 `json:"max"`
+	State         string  `json:"state"`
+	NodeID        string  `json:"node_id"`
+	PromptID      string  `json:"prompt_id"`
+	DisplayNodeID string  `json:"display_node_id"`
+	ParentNodeID  *string `json:"parent_node_id"`
+	RealNodeID    string  `json:"real_node_id"`
+}
+
+type WSMessageDataProgressState struct {
+	PromptID string                       `json:"prompt_id"`
+	Nodes    map[string]NodeProgressState `json:"nodes"`
+}
+
+/*
+{"type": "progress_state", "data": {"prompt_id": "8655660c-0a6e-4c69-92e5-2641a17f534c", "nodes": {"57:3": {"value": 4, "max": 4, "state": "finished", "node_id": "57:3", "prompt_id": "8655660c-0a6e-4c69-92e5-2641a17f534c", "display_node_id": "57:3", "parent_node_id": null, "real_node_id": "57:3"}}}}
+*/
+
+type WSMessageDataExecutionSuccess struct {
+	PromptID  string `json:"prompt_id"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+/*
+{"type": "execution_success", "data": {"prompt_id": "8655660c-0a6e-4c69-92e5-2641a17f534c", "timestamp": 1768172578151}}
+*/

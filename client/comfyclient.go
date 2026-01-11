@@ -398,6 +398,43 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 			qi.Close()
 			qi.Messages <- m
 		}
+	case "progress_state":
+		s := message.Data.(*WSMessageDataProgressState)
+		if qi != nil {
+			// Convert the map of node progress states to application-level format
+			nodes := make(map[string]NodeProgressInfo)
+			for nodeID, nodeState := range s.Nodes {
+				nodes[nodeID] = NodeProgressInfo{
+					Value:         nodeState.Value,
+					Max:           nodeState.Max,
+					State:         nodeState.State,
+					NodeID:        nodeState.NodeID,
+					DisplayNodeID: nodeState.DisplayNodeID,
+					ParentNodeID:  nodeState.ParentNodeID,
+					RealNodeID:    nodeState.RealNodeID,
+				}
+			}
+			m := PromptMessage{
+				Type: "progress_state",
+				Message: &PromptMessageProgressState{
+					PromptID: s.PromptID,
+					Nodes:    nodes,
+				},
+			}
+			qi.Messages <- m
+		}
+	case "execution_success":
+		s := message.Data.(*WSMessageDataExecutionSuccess)
+		if qi != nil {
+			m := PromptMessage{
+				Type: "execution_success",
+				Message: &PromptMessageExecutionSuccess{
+					PromptID:  s.PromptID,
+					Timestamp: s.Timestamp,
+				},
+			}
+			qi.Messages <- m
+		}
 	case "crystools.monitor":
 	default:
 		// Handle unknown data types or return a dedicated error here

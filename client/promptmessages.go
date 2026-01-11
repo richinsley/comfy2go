@@ -12,8 +12,6 @@ type PromptMessage struct {
 // progress
 // data
 // stopped
-//
-// new messages:
 // progress_state
 // execution_success
 
@@ -75,4 +73,32 @@ type PromptMessageStoppedException struct {
 
 func (p *PromptMessage) ToPromptMessageStopped() *PromptMessageStopped {
 	return p.Message.(*PromptMessageStopped)
+}
+
+type PromptMessageProgressState struct {
+	PromptID string
+	Nodes    map[string]NodeProgressInfo
+}
+
+type NodeProgressInfo struct {
+	Value         float64
+	Max           float64
+	State         string
+	NodeID        string
+	DisplayNodeID string
+	ParentNodeID  *string
+	RealNodeID    string
+}
+
+func (p *PromptMessage) ToPromptMessageProgressState() *PromptMessageProgressState {
+	return p.Message.(*PromptMessageProgressState)
+}
+
+type PromptMessageExecutionSuccess struct {
+	PromptID  string
+	Timestamp int64
+}
+
+func (p *PromptMessage) ToPromptMessageExecutionSuccess() *PromptMessageExecutionSuccess {
+	return p.Message.(*PromptMessageExecutionSuccess)
 }
