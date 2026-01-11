@@ -20,16 +20,18 @@ func (a ByGraphOrdinal) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByGraphOrdinal) Less(i, j int) bool { return a[i].Order < a[j].Order }
 
 type Graph struct {
-	Nodes                 []*GraphNode       `json:"nodes"`
-	Links                 []*Link            `json:"links"`
-	Groups                []*Group           `json:"groups"`
-	LastNodeID            int                `json:"last_node_id"`
-	LastLinkID            int                `json:"last_link_id"`
-	Version               float32            `json:"version"`
-	NodesByID             map[int]*GraphNode `json:"-"`
-	LinksByID             map[int]*Link      `json:"-"`
-	NodesInExecutionOrder []*GraphNode       `json:"-"`
-	HasErrors             bool               `json:"-"`
+	Nodes                 []*GraphNode                   `json:"nodes"`
+	Links                 []*Link                        `json:"links"`
+	Groups                []*Group                       `json:"groups"`
+	Definitions           *GraphDefinitions              `json:"definitions,omitempty"`
+	LastNodeID            int                            `json:"last_node_id"`
+	LastLinkID            int                            `json:"last_link_id"`
+	Version               float32                        `json:"version"`
+	NodesByID             map[int]*GraphNode             `json:"-"`
+	LinksByID             map[int]*Link                  `json:"-"`
+	SubgraphsByID         map[string]*SubgraphDefinition `json:"-"`
+	NodesInExecutionOrder []*GraphNode                   `json:"-"`
+	HasErrors             bool                           `json:"-"`
 }
 
 // GetGroupWithTitle returns the 'first' group with the given title
@@ -66,17 +68,34 @@ func (t *Graph) UnmarshalJSON(b []byte) error {
 	t.Nodes = alias.Nodes
 	t.Links = alias.Links
 	t.Groups = alias.Groups
+	t.Definitions = alias.Definitions
 	t.LastNodeID = alias.LastNodeID
 	t.LastLinkID = alias.LastLinkID
 	t.Version = alias.Version
 	t.NodesByID = make(map[int]*GraphNode)
 	t.LinksByID = make(map[int]*Link)
+	t.SubgraphsByID = make(map[string]*SubgraphDefinition)
+
+	// Build subgraph lookup map and set parent graph references
+	if t.Definitions != nil && t.Definitions.Subgraphs != nil {
+		for _, sg := range t.Definitions.Subgraphs {
+			t.SubgraphsByID[sg.ID] = sg
+			sg.ParentGraph = t
+			sg.BuildInternalMaps()
+		}
+	}
 
 	for _, node := range t.Nodes {
 		// Populate the "by ID's"
 		t.NodesByID[node.ID] = node
 		// Give the node a pointer to it's parent graph
 		t.NodesByID[node.ID].Graph = t
+
+		// Check if this node references a subgraph
+		if sg, exists := t.SubgraphsByID[node.Type]; exists {
+			node.IsSubgraph = true
+			node.SubgraphDef = sg
+		}
 	}
 
 	for _, link := range t.Links {
@@ -148,6 +167,13 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 
 		// create a new map to hold the properties by name
 		n.Properties = make(map[string]Property)
+
+		// Handle subgraph nodes specially
+		if n.IsSubgraph && n.SubgraphDef != nil {
+			t.createSubgraphProperties(n, &pindex)
+			continue
+		}
+
 		nobject := node_objects.GetNodeObjectByName(n.Type)
 
 		if nobject != nil {
@@ -194,8 +220,8 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 				(*np).SetDirectValue(&notewidgets[0])
 				n.Properties["text"] = *np
 				continue
-			} else if n.Type == "Reroute" {
-				// skip Reroute
+			} else if n.Type == "Reroute" || n.Type == "MarkdownNote" {
+				// skip Reroute and MarkdownNote
 				continue
 			} else {
 				slog.Error("Could not get node object for", "node type", n.Type)
@@ -257,7 +283,122 @@ func (t *Graph) CreateNodeProperties(node_objects *NodeObjects) *[]string {
 			}
 		}
 	}
+
+	// Process internal nodes of all subgraphs
+	if t.Definitions != nil && t.Definitions.Subgraphs != nil {
+		for _, sg := range t.Definitions.Subgraphs {
+			for _, n := range sg.Nodes {
+				// Skip virtual nodes
+				if n.IsVirtual() {
+					continue
+				}
+
+				// Create properties for this internal node
+				pindex := 0
+				n.Properties = make(map[string]Property)
+
+				nobject := node_objects.GetNodeObjectByName(n.Type)
+				if nobject != nil {
+					n.DisplayName = nobject.DisplayName
+					n.Description = nobject.Description
+					n.IsOutput = nobject.OutputNode
+
+					props := nobject.GetSettableProperties()
+					t.ProcessSettableProperties(n, &props, &pindex)
+				} else {
+					// Handle special node types
+					if n.Type == "Note" {
+						notewidgets := n.WidgetValues.([]interface{})
+						np := newStringProperty("text", false, nil, 0)
+						(*np).SetDirectValue(&notewidgets[0])
+						n.Properties["text"] = *np
+					} else if n.Type != "Reroute" && n.Type != "MarkdownNote" {
+						// Track missing node types
+						if retv == nil {
+							r := make([]string, 0)
+							retv = &r
+						}
+						if !containsString(retv, n.Type) {
+							r := append(*retv, n.Type)
+							retv = &r
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return retv
+}
+
+// createSubgraphProperties creates properties for a subgraph instance node
+// based on the subgraph's input definitions
+func (t *Graph) createSubgraphProperties(n *GraphNode, pindex *int) {
+	sg := n.SubgraphDef
+	if sg == nil {
+		return
+	}
+
+	// Get widget values array
+	widgetValues := n.WidgetValuesArray()
+	if widgetValues == nil {
+		widgetValues = make([]interface{}, 0)
+	}
+
+	// Create a property for each subgraph input
+	for _, input := range sg.Inputs {
+		propName := input.Name
+		propType := input.Type
+
+		// Create property based on type and link it to the node's widget
+		var prop Property
+		switch propType {
+		case "STRING":
+			np := newStringProperty(propName, false, nil, *pindex)
+			(*np).UpdateParent(*np)
+			(*np).SetTargetWidget(n, *pindex)
+			prop = *np
+
+		case "INT":
+			np := newIntProperty(propName, false, nil, *pindex)
+			(*np).UpdateParent(*np)
+			(*np).SetTargetWidget(n, *pindex)
+			prop = *np
+
+			// Check if this is a seed property - needs special handling for control_after_generate
+			if propName == "seed" || propName == "noise_seed" {
+				*pindex++
+				// The next widget value (if it exists) is control_after_generate
+				// We'll handle this similar to how regular nodes handle it
+			}
+
+		case "FLOAT":
+			np := newFloatProperty(propName, false, nil, *pindex)
+			(*np).UpdateParent(*np)
+			(*np).SetTargetWidget(n, *pindex)
+			prop = *np
+
+		case "BOOLEAN":
+			np := newBoolProperty(propName, false, nil, *pindex)
+			(*np).UpdateParent(*np)
+			(*np).SetTargetWidget(n, *pindex)
+			prop = *np
+
+		default:
+			// For unknown types, create an unknown property
+			np := newUnknownProperty(propName, false, propType, *pindex)
+			(*np).UpdateParent(*np)
+			(*np).SetTargetWidget(n, *pindex)
+			prop = *np
+		}
+
+		n.Properties[propName] = prop
+		*pindex++
+	}
+
+	// Set display name and description from subgraph
+	n.DisplayName = sg.Name
+	n.Description = ""
 }
 
 func (t *Graph) ProcessSettableProperties(n *GraphNode, props *[]Property, pindex *int) {
@@ -480,55 +621,76 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 		Nodes:    make(map[int]PromptNode),
 		// PID:      "floopy-thingy-ma-bob", // we can add additionl information that is ignored by ComfyUI
 	}
-	for _, node := range t.NodesInExecutionOrder {
-		if node.IsVirtual() {
-			// Don't serialize frontend only nodes but let them make changes
-			node.ApplyToGraph()
-			continue
-		}
 
-		if node.Mode == 2 {
-			// Don't serialize muted nodes
-			continue
+	// Check if the graph contains any subgraphs
+	hasSubgraphs := false
+	for _, node := range t.Nodes {
+		if node.IsSubgraph {
+			hasSubgraphs = true
+			break
 		}
+	}
 
-		// create the prompt node
-		pn := PromptNode{
-			ClassType: node.Type,
-			Inputs:    make(map[string]interface{}),
+	// If the graph has subgraphs, use the SubgraphExpander
+	if hasSubgraphs {
+		expander := NewSubgraphExpander(t)
+		if err := expander.ExpandAll(); err != nil {
+			return p, err
 		}
-
-		// populate the node input values
-		for k, prop := range node.Properties {
-			if prop.Serializable() {
-				pn.Inputs[k] = prop.GetValue()
+		p.Nodes = expander.ToPromptNodes()
+	} else {
+		// Use original logic for backward compatibility
+		for _, node := range t.NodesInExecutionOrder {
+			if node.IsVirtual() {
+				// Don't serialize frontend only nodes but let them make changes
+				node.ApplyToGraph()
+				continue
 			}
-		}
 
-		// populate the node input links
-		for i, slot := range node.Inputs {
-			parent := node.GetNodeForInput(i)
-			if parent != nil {
-				link := t.GetLinkById(slot.Link)
-				for parent != nil && parent.IsVirtual() {
-					link = parent.GetInputLink(link.OriginSlot)
+			if node.Mode == 2 {
+				// Don't serialize muted nodes
+				continue
+			}
+
+			// create the prompt node
+			pn := PromptNode{
+				ClassType: node.Type,
+				Inputs:    make(map[string]interface{}),
+			}
+
+			// populate the node input values
+			for k, prop := range node.Properties {
+				if prop.Serializable() {
+					pn.Inputs[k] = prop.GetValue()
+				}
+			}
+
+			// populate the node input links
+			for i, slot := range node.Inputs {
+				parent := node.GetNodeForInput(i)
+				if parent != nil {
+					link := t.GetLinkById(slot.Link)
+					for parent != nil && parent.IsVirtual() {
+						link = parent.GetInputLink(link.OriginSlot)
+						if link != nil {
+							parent = parent.GetNodeForInput(link.OriginSlot)
+						} else {
+							break
+						}
+					}
+
 					if link != nil {
-						parent = parent.GetNodeForInput(link.OriginSlot)
-					} else {
-						break
+						linfo := make([]interface{}, 2)
+						linfo[0] = strconv.Itoa(link.OriginID)
+						linfo[1] = link.OriginSlot
+						pn.Inputs[node.Inputs[i].Name] = linfo
 					}
 				}
-
-				if link != nil {
-					linfo := make([]interface{}, 2)
-					linfo[0] = strconv.Itoa(link.OriginID)
-					linfo[1] = link.OriginSlot
-					pn.Inputs[node.Inputs[i].Name] = linfo
-				}
 			}
+			p.Nodes[node.ID] = pn
 		}
-		p.Nodes[node.ID] = pn
 	}
+
 	// assign our current graph as the workflow
 	p.ExtraData.PngInfo.Workflow = t
 	return p, nil

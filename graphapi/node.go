@@ -30,6 +30,9 @@ type GraphNode struct {
 	DisplayName  string              `json:"-"`
 	Description  string              `json:"-"`
 	IsOutput     bool                `json:"-"`
+	// Subgraph-related fields
+	IsSubgraph   bool                 `json:"-"`
+	SubgraphDef  *SubgraphDefinition  `json:"-"`
 }
 
 func (n *GraphNode) WidgetValuesArray() []interface{} {
@@ -80,6 +83,8 @@ func (n *GraphNode) IsVirtual() bool {
 	case "Reroute":
 		return true
 	case "Note":
+		return true
+	case "MarkdownNote":
 		return true
 	}
 	return false

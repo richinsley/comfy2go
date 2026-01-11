@@ -34,3 +34,12 @@ jsontest
 
 ### jetbrain goland
 .idea
+
+### subgraph things
+SUBGRAPH_FIX.md
+SUBGRAPH_IMPLEMENTATION.md
+examples/SUBGRAPH_EXAMPLE.md
+examples/subgraph_example
+examples/subgraph_example.go
+examples/test_with_server.go
+examples/wanvideo/

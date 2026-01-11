@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -211,7 +212,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 	message := &WSStatusMessage{}
 	err := json.Unmarshal([]byte(msg), &message)
 	if err != nil {
-		slog.Error("Deserializing Status Message:", err)
+		slog.Error("Deserializing Status Message:", "error", err)
 	}
 
 	switch message.Type {
@@ -261,14 +262,25 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 				qi.Messages <- m
 			} else {
 				node := qi.Workflow.GetNodeById(*s.Node)
-				m := PromptMessage{
-					Type: "executing",
-					Message: &PromptMessageExecuting{
-						NodeID: *s.Node,
-						Title:  node.DisplayName,
-					},
+				if node != nil {
+					m := PromptMessage{
+						Type: "executing",
+						Message: &PromptMessageExecuting{
+							NodeID: *s.Node,
+							Title:  node.DisplayName,
+						},
+					}
+					qi.Messages <- m
+				} else {
+					m := PromptMessage{
+						Type: "executing",
+						Message: &PromptMessageExecuting{
+							NodeID: *s.Node,
+							Title:  fmt.Sprintf("%d", *s.Node),
+						},
+					}
+					qi.Messages <- m
 				}
-				qi.Messages <- m
 			}
 		}
 	case "progress":
@@ -362,5 +374,3 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 		slog.Warn("Unhandled message type: ", "type", message.Type)
 	}
 }
-
-
