@@ -323,30 +323,18 @@ func (e *SubgraphExpander) buildInputMapping(
 	mapping := make(map[int]interface{})
 
 	for i, input := range sg.Inputs {
-		// Check if there's an external link to this input
-		var externalLink *Link
+		// Find the corresponding input slot on the instance node by NAME, not by index
+		// This is critical because the slot ordering may differ between the subgraph definition
+		// and the instance node (e.g., text at slot 2 internally but slot 6 externally)
+		instanceSlot := instanceNode.GetInputWithName(input.Name)
 
-		if parentSubgraph != nil {
-			// We're inside a parent subgraph - find link in parent's links
-			for _, slot := range instanceNode.Inputs {
-				if slot.Link != 0 {
-					link := parentSubgraph.GetLinkById(slot.Link)
-					if link != nil && link.TargetSlot == i {
-						externalLink = link
-						break
-					}
-				}
-			}
-		} else {
-			// Top-level - find link in main graph
-			for _, slot := range instanceNode.Inputs {
-				if slot.Link != 0 {
-					link := e.Graph.GetLinkById(slot.Link)
-					if link != nil && link.TargetSlot == i {
-						externalLink = link
-						break
-					}
-				}
+		var externalLink *Link
+		if instanceSlot != nil && instanceSlot.Link != 0 {
+			// Found a slot with this name that has a connection
+			if parentSubgraph != nil {
+				externalLink = parentSubgraph.GetLinkById(instanceSlot.Link)
+			} else {
+				externalLink = e.Graph.GetLinkById(instanceSlot.Link)
 			}
 		}
 
@@ -363,7 +351,7 @@ func (e *SubgraphExpander) buildInputMapping(
 		} else {
 			// No external link - use widget value from instance node
 			if instanceNode.WidgetValues != nil {
-				mapping[i] = e.getWidgetValue(instanceNode, input.Name, i)
+				mapping[i] = e.getWidgetValue(instanceNode, input.Name)
 			}
 		}
 	}
@@ -430,8 +418,8 @@ func (e *SubgraphExpander) resolveExternalLink(link *Link, parentSubgraph *Subgr
 	return []int{link.OriginID, link.OriginSlot}
 }
 
-// getWidgetValue extracts a widget value from a node
-func (e *SubgraphExpander) getWidgetValue(node *GraphNode, name string, index int) interface{} {
+// getWidgetValue extracts a widget value from a node using the widget name
+func (e *SubgraphExpander) getWidgetValue(node *GraphNode, name string) interface{} {
 	// First, try to get value from properties if they exist
 	if node.Properties != nil && len(node.Properties) > 0 {
 		prop := node.GetPropertyWithName(name)
@@ -441,15 +429,33 @@ func (e *SubgraphExpander) getWidgetValue(node *GraphNode, name string, index in
 	}
 
 	// Fall back to raw widget values
-	if node.IsWidgetValueArray() {
-		arr := node.WidgetValuesArray()
-		if index < len(arr) {
-			return arr[index]
-		}
-	} else if node.IsWidgetValueMap() {
+	if node.IsWidgetValueMap() {
 		m := node.WidgetValuesMap()
 		if val, ok := m[name]; ok {
 			return val
+		}
+	} else if node.IsWidgetValueArray() {
+		// For array widget values, we need to find the correct index using proxyWidgets
+		// proxyWidgets is an array like [["-1", "width"], ["-1", "height"], ["3", "some_param"], ...]
+		// where each entry maps to the corresponding index in widget_values
+		if node.InternalProperties != nil {
+			if proxyWidgetsRaw, ok := (*node.InternalProperties)["proxyWidgets"]; ok {
+				if proxyWidgets, ok := proxyWidgetsRaw.([]interface{}); ok {
+					arr := node.WidgetValuesArray()
+					// Find the index where proxyWidgets[i] is ["-1", name]
+					for i, entryRaw := range proxyWidgets {
+						if entry, ok := entryRaw.([]interface{}); ok && len(entry) >= 2 {
+							nodeID, ok1 := entry[0].(string)
+							widgetName, ok2 := entry[1].(string)
+							if ok1 && ok2 && nodeID == "-1" && widgetName == name {
+								if i < len(arr) {
+									return arr[i]
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
