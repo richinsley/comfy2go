@@ -117,6 +117,7 @@ type WSMessageDataExecuted struct {
 }
 
 func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
+	fmt.Println(string(b))
 	var temp struct {
 		Node      string                 `json:"node"`
 		OutputRaw map[string]interface{} `json:"output"`
@@ -129,6 +130,10 @@ func (mde *WSMessageDataExecuted) UnmarshalJSON(b []byte) error {
 	// iterrate over Outputraw and see if it can be cast to a slice of interface{}
 	mde.Output = make(map[string]*[]DataOutput)
 	for k, v := range temp.OutputRaw {
+		if k == "animated" {
+			// I think we can ignore this
+			continue
+		}
 		if val, ok := v.([]interface{}); ok {
 			mde.Output[k] = &[]DataOutput{}
 			for _, i := range val {
