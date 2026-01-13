@@ -25,7 +25,6 @@ func procCLI() (string, int, string) {
 	// Check for required filename argument
 	if len(flag.Args()) != 1 {
 		flag.Usage()
-		fmt.Println("Provide a PNG file with a workflow")
 		os.Exit(1)
 	}
 	filename := flag.Arg(0)
@@ -35,9 +34,19 @@ func procCLI() (string, int, string) {
 func main() {
 	clientaddr, clientport, workflow := procCLI()
 
+	// callbacks can be used respond to QueuedItem updates, or client status changes
 	callbacks := &client.ComfyClientCallbacks{
 		ClientQueueCountChanged: func(c *client.ComfyClient, queuecount int) {
 			log.Printf("Client %s at %s Queue size: %d", c.ClientID(), clientaddr, queuecount)
+		},
+		QueuedItemStarted: func(c *client.ComfyClient, qi *client.QueueItem) {
+			log.Printf("Queued item %s started\n", qi.PromptID)
+		},
+		QueuedItemStopped: func(cc *client.ComfyClient, qi *client.QueueItem, reason client.QueuedItemStoppedReason) {
+			log.Printf("Queued item %s stopped\n", qi.PromptID)
+		},
+		QueuedItemDataAvailable: func(cc *client.ComfyClient, qi *client.QueueItem, pmd *client.PromptMessageData) {
+			log.Printf("image data available:\n")
 		},
 	}
 
@@ -54,27 +63,35 @@ func main() {
 		}
 	}
 
-	// create a graph from the png file
-	graph, _, err := c.NewGraphFromPNGFile(workflow)
+	// load the workflow
+	graph, _, err := c.NewGraphFromJsonFile(workflow)
 	if err != nil {
-		log.Println("Failed to get workflow graph from png file:", err)
+		log.Println("Error loading graph JSON:", err)
 		os.Exit(1)
 	}
 
-	// queue the prompt and get the resulting image
-	item, err := c.QueuePrompt(graph)
-	if err != nil {
-		log.Println("Failed to queue prompt:", err)
-		os.Exit(1)
-	}
+	// Get the nodes that are within the "API" Group.  GetSimpleAPI takes each
+	// node and exposes it's first (and only it's first) property, with the title of the node as the key
+	// in the Properties field.
+	simple_api := graph.GetSimpleAPI(nil)
+	width := simple_api.Properties["Width"]
+	height := simple_api.Properties["Height"]
+	positive := simple_api.Properties["Positive"]
+	negative := simple_api.Properties["Negative"]
+	width.SetValue(1024)
+	height.SetValue(1024)
+	positive.SetValue("a dive bar, dimly lit, zombies, dancing, mosh pit")
+	negative.SetValue("text, watermark")
 
-	// Process messages using the new streamlined handler pattern
-	err = item.ProcessMessages(
+	// or we can set it directly
+	simple_api.Properties["Seed"].SetValue(2290222)
+
+	// RECOMMENDED APPROACH: Use QueuePromptAndProcess to avoid race conditions
+	// This atomically queues the prompt and starts processing messages
+	err = c.QueuePromptAndProcess(graph,
 		client.DefaultMessageHandlers().
 			WithDataHandler(func(msg *client.PromptMessageData) {
-				// data objects have the fields: Filename, Subfolder, Type
-				// * Subfolder is the subfolder in the output directory
-				// * Type is the type of the image temp/
+				// Handle output data - save images/gifs
 				for k, v := range msg.Data {
 					if k == "images" || k == "gifs" {
 						for _, output := range v {
@@ -90,7 +107,7 @@ func main() {
 							}
 							f.Write(*img_data)
 							f.Close()
-							log.Println("Got data:", output.Filename)
+							log.Println("Saved:", output.Filename)
 						}
 					}
 				}

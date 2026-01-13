@@ -1097,7 +1097,7 @@ func TestInternalNodePropertiesInPrompt(t *testing.T) {
 		}
 	}
 
-	t.Logf("✓ Internal nodes have their widget values properly serialized")
+	t.Logf("Internal nodes have their widget values properly serialized")
 }
 
 func compareField(t *testing.T, name string, expected, actual interface{}) {

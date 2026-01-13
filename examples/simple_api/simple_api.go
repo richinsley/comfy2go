@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/richinsley/comfy2go/client"
-	"github.com/schollz/progressbar/v3"
 )
 
 // process CLI arguments
@@ -94,62 +93,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	// we'll provide a progress bar
-	var bar *progressbar.ProgressBar = nil
-
-	// continuously read messages from the QueuedItem until we get the "stopped" message type
-	var currentNodeTitle string
-	for continueLoop := true; continueLoop; {
-		msg := <-item.Messages
-		switch msg.Type {
-		case "started":
-			qm := msg.ToPromptMessageStarted()
-			log.Printf("Start executing prompt ID %s\n", qm.PromptID)
-		case "executing":
-			bar = nil
-			qm := msg.ToPromptMessageExecuting()
-			// store the node's title so we can use it in the progress bar
-			currentNodeTitle = qm.Title
-			log.Printf("Executing Node: %s\n", qm.NodeID)
-		case "progress":
-			// update our progress bar
-			qm := msg.ToPromptMessageProgress()
-			if bar == nil {
-				bar = progressbar.Default(int64(qm.Max), currentNodeTitle)
-			}
-			bar.Set(qm.Value)
-		case "stopped":
-			// if we were stopped for an exception, display the exception message
-			qm := msg.ToPromptMessageStopped()
-			if qm.Exception != nil {
-				log.Println(qm.Exception)
-				os.Exit(1)
-			}
-			continueLoop = false
-		case "data":
-			qm := msg.ToPromptMessageData()
-			// data objects have the fields: Filename, Subfolder, Type
-			// * Subfolder is the subfolder in the output directory
-			// * Type is the type of the image temp/
-			for k, v := range qm.Data {
-				if k == "images" || k == "gifs" {
-					for _, output := range v {
-						img_data, err := c.GetImage(output)
-						if err != nil {
-							log.Println("Failed to get image:", err)
-							os.Exit(1)
+	// Process messages using the new streamlined handler pattern
+	err = item.ProcessMessages(
+		client.DefaultMessageHandlers().
+			WithDataHandler(func(msg *client.PromptMessageData) {
+				// data objects have the fields: Filename, Subfolder, Type
+				// * Subfolder is the subfolder in the output directory
+				// * Type is the type of the image temp/
+				for k, v := range msg.Data {
+					if k == "images" || k == "gifs" {
+						for _, output := range v {
+							img_data, err := c.GetImage(output)
+							if err != nil {
+								log.Println("Failed to get image:", err)
+								os.Exit(1)
+							}
+							f, err := os.Create(output.Filename)
+							if err != nil {
+								log.Println("Failed to write image:", err)
+								os.Exit(1)
+							}
+							f.Write(*img_data)
+							f.Close()
+							log.Println("Saved:", output.Filename)
 						}
-						f, err := os.Create(output.Filename)
-						if err != nil {
-							log.Println("Failed to write image:", err)
-							os.Exit(1)
-						}
-						f.Write(*img_data)
-						f.Close()
-						log.Println("Got data: ", output.Filename)
 					}
 				}
-			}
-		}
+			}),
+	)
+
+	if err != nil {
+		log.Fatal("Execution failed:", err)
 	}
 }
