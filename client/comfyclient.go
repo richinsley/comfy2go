@@ -441,3 +441,21 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 		slog.Warn("Unhandled message type: ", "type", message.Type)
 	}
 }
+
+// Close closes all websocket connections and cleans up resources
+func (c *ComfyClient) Close() error {
+	var lastErr error
+
+	// Close all queued items' websocket connections
+	for _, item := range c.queueditems {
+		if item != nil {
+			item.Close()
+		}
+	}
+
+	// Clear the queue
+	c.queueditems = make(map[string]*QueueItem)
+	c.initialized = false
+
+	return lastErr
+}
