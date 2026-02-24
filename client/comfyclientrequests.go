@@ -304,6 +304,7 @@ func (c *ComfyClient) QueueRawPrompt(graph *graphapi.Graph, prompt *graphapi.Pro
 		Workflow:  graph,
 		Messages:  make(chan PromptMessage),
 		webSocket: ws,
+		done:      make(chan struct{}),
 	}
 
 	err = json.Unmarshal(body, &item)
