@@ -46,6 +46,7 @@ func (c *ComfyClient) GetSystemStats() (*SystemStats, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	retv := &SystemStats{}
@@ -85,6 +86,7 @@ func (c *ComfyClient) GetPromptHistoryByID() (map[string]PromptHistoryItem, erro
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	// we need to re-arrange the data into something more coherent
 	// We're going to have to make an adapter that reconstructs an actual prompt
@@ -170,6 +172,7 @@ func (c *ComfyClient) GetViewMetadata(folder string, file string) (string, error
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	return string(body), nil
@@ -186,6 +189,7 @@ func (c *ComfyClient) GetImage(image_data DataOutput) (*[]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	return &body, nil
@@ -197,6 +201,7 @@ func (c *ComfyClient) GetEmbeddings() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	retv := make([]string, 0)
@@ -213,6 +218,7 @@ func (c *ComfyClient) GetQueueExecutionInfo() (*QueueExecInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	queue_exec := &QueueExecInfo{}
@@ -230,6 +236,7 @@ func (c *ComfyClient) GetExtensions() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	retv := make([]string, 0)
@@ -247,6 +254,7 @@ func (c *ComfyClient) GetObjectInfos() (*graphapi.NodeObjects, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	result := &graphapi.NodeObjects{}
@@ -296,6 +304,7 @@ func (c *ComfyClient) QueueRawPrompt(graph *graphapi.Graph, prompt *graphapi.Pro
 		ws.Close()
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -358,6 +367,7 @@ func (c *ComfyClient) Interrupt() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	io.ReadAll(resp.Body)
 	return nil
@@ -370,6 +380,7 @@ func (c *ComfyClient) EraseHistory() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	io.ReadAll(resp.Body)
 	return nil
@@ -382,6 +393,7 @@ func (c *ComfyClient) EraseHistoryItem(promptID string) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	io.ReadAll(resp.Body)
 	return nil
