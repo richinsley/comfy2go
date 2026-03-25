@@ -4,6 +4,13 @@ import (
 	"log/slog"
 )
 
+// NodeMode represents the execution mode of a node in ComfyUI
+const (
+	NodeModeActive  = 0 // Node executes normally
+	NodeModeMuted   = 2 // Node is skipped entirely (not serialized)
+	NodeModeBypassed = 4 // Node is bypassed: pass-through matching input to downstream
+)
+
 // GraphNode represents the encapsulation of an individual functionality within a Graph
 type GraphNode struct {
 	ID                 int                     `json:"id"`
@@ -234,4 +241,61 @@ func (n *GraphNode) ApplyToGraph() {
 			}
 		*/
 	}
+}
+
+// SetMode sets the node's execution mode
+func (n *GraphNode) SetMode(mode int) {
+	n.Mode = mode
+}
+
+// SetActive sets the node to active mode (normal execution)
+func (n *GraphNode) SetActive() {
+	n.Mode = NodeModeActive
+}
+
+// Mute sets the node to muted mode (skipped entirely)
+func (n *GraphNode) Mute() {
+	n.Mode = NodeModeMuted
+}
+
+// Bypass sets the node to bypass mode (pass-through)
+func (n *GraphNode) Bypass() {
+	n.Mode = NodeModeBypassed
+}
+
+// IsMuted returns true if the node is muted
+func (n *GraphNode) IsMuted() bool {
+	return n.Mode == NodeModeMuted
+}
+
+// IsBypassed returns true if the node is bypassed
+func (n *GraphNode) IsBypassed() bool {
+	return n.Mode == NodeModeBypassed
+}
+
+// IsActive returns true if the node is in active mode
+func (n *GraphNode) IsActive() bool {
+	return n.Mode == NodeModeActive
+}
+
+// GetBypassOrigin finds the upstream link that should be passed through when this node is bypassed.
+// For each output slot, it tries to find the first input slot whose type matches the output type,
+// following the ComfyUI bypass convention.
+// Returns a map of output slot index -> input Link that should be forwarded.
+func (n *GraphNode) GetBypassOrigin() map[int]*Link {
+	result := make(map[int]*Link)
+
+	for outIdx, outSlot := range n.Outputs {
+		// Find the first input slot with a matching type
+		for inIdx, inSlot := range n.Inputs {
+			if inSlot.Type == outSlot.Type {
+				link := n.GetInputLink(inIdx)
+				if link != nil {
+					result[outIdx] = link
+					break // use first match
+				}
+			}
+		}
+	}
+	return result
 }

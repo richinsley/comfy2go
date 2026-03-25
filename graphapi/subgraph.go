@@ -172,7 +172,7 @@ func NewSubgraphExpander(g *Graph) *SubgraphExpander {
 // ExpandAll expands all nodes, recursively handling subgraphs
 func (e *SubgraphExpander) ExpandAll() error {
 	for _, node := range e.Graph.NodesInExecutionOrder {
-		if node.IsVirtual() || node.Mode == 2 {
+		if node.IsVirtual() || node.Mode == NodeModeMuted || node.Mode == NodeModeBypassed {
 			continue
 		}
 
@@ -226,8 +226,8 @@ func (e *SubgraphExpander) expandSubgraphNode(
 			continue
 		}
 
-		// Skip muted nodes
-		if internalNode.Mode == 2 {
+		// Skip muted or bypassed nodes
+		if internalNode.Mode == NodeModeMuted || internalNode.Mode == NodeModeBypassed {
 			continue
 		}
 

@@ -354,12 +354,12 @@ func TestGraphToPromptWithSubgraphs(t *testing.T) {
 	// Count nodes that should appear in prompt
 	expectedNodes := 0
 	for _, node := range graph.Nodes {
-		if !node.IsVirtual() && node.Mode != 2 {
+		if !node.IsVirtual() && node.Mode != NodeModeMuted && node.Mode != NodeModeBypassed {
 			if node.IsSubgraph {
 				// Count internal non-virtual nodes
 				if node.SubgraphDef != nil {
 					for _, internalNode := range node.SubgraphDef.Nodes {
-						if !internalNode.IsVirtual() && internalNode.Mode != 2 {
+						if !internalNode.IsVirtual() && internalNode.Mode != NodeModeMuted && internalNode.Mode != NodeModeBypassed {
 							expectedNodes++
 						}
 					}
