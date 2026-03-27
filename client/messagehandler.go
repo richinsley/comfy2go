@@ -122,8 +122,8 @@ func (h *MessageHandlers) WithCompleteHandler(fn func()) *MessageHandlers {
 }
 
 // ProcessMessages processes messages from the QueueItem using the provided handlers.
-// This function blocks until execution stops or an error occurs.
-// Returns an error if execution failed, nil if successful.
+// This function blocks until execution stops, the QueueItem is closed, or an error occurs.
+// Returns an error if execution failed or the QueueItem was closed, nil if successful.
 func (qi *QueueItem) ProcessMessages(handlers *MessageHandlers) error {
 	if handlers == nil {
 		handlers = &MessageHandlers{}
@@ -131,67 +131,77 @@ func (qi *QueueItem) ProcessMessages(handlers *MessageHandlers) error {
 
 	var executionError error
 
-	// Ensure OnComplete is called when we exit
+	// Ensure OnComplete is called when we exit.
 	if handlers.OnComplete != nil {
 		defer handlers.OnComplete()
 	}
 
 	for {
-		msg := <-qi.Messages
-
-		switch msg.Type {
-		case "started":
-			if handlers.OnStarted != nil {
-				handlers.OnStarted(msg.ToPromptMessageStarted())
+		select {
+		case msg, ok := <-qi.Messages:
+			if !ok {
+				return fmt.Errorf("message channel closed")
 			}
 
-		case "executing":
-			if handlers.OnExecuting != nil {
-				handlers.OnExecuting(msg.ToPromptMessageExecuting())
-			}
-
-		case "progress":
-			if handlers.OnProgress != nil {
-				handlers.OnProgress(msg.ToPromptMessageProgress())
-			}
-
-		case "progress_state":
-			if handlers.OnProgressState != nil {
-				handlers.OnProgressState(msg.ToPromptMessageProgressState())
-			}
-
-		case "data":
-			if handlers.OnData != nil {
-				handlers.OnData(msg.ToPromptMessageData())
-			}
-
-		case "execution_success":
-			if handlers.OnExecutionSuccess != nil {
-				handlers.OnExecutionSuccess(msg.ToPromptMessageExecutionSuccess())
-			}
-
-		case "stopped":
-			stopped := msg.ToPromptMessageStopped()
-
-			// Handle error first if present
-			if stopped.Exception != nil {
-				if handlers.OnError != nil {
-					handlers.OnError(stopped.Exception)
+			switch msg.Type {
+			case "started":
+				if handlers.OnStarted != nil {
+					handlers.OnStarted(msg.ToPromptMessageStarted())
 				}
-				executionError = fmt.Errorf("execution failed: %s - %s",
-					stopped.Exception.ExceptionType,
-					stopped.Exception.ExceptionMessage)
+
+			case "executing":
+				if handlers.OnExecuting != nil {
+					handlers.OnExecuting(msg.ToPromptMessageExecuting())
+				}
+
+			case "progress":
+				if handlers.OnProgress != nil {
+					handlers.OnProgress(msg.ToPromptMessageProgress())
+				}
+
+			case "progress_state":
+				if handlers.OnProgressState != nil {
+					handlers.OnProgressState(msg.ToPromptMessageProgressState())
+				}
+
+			case "data":
+				if handlers.OnData != nil {
+					handlers.OnData(msg.ToPromptMessageData())
+				}
+
+			case "execution_success":
+				if handlers.OnExecutionSuccess != nil {
+					handlers.OnExecutionSuccess(msg.ToPromptMessageExecutionSuccess())
+				}
+
+			case "stopped":
+				stopped := msg.ToPromptMessageStopped()
+
+				// Handle error first if present.
+				if stopped.Exception != nil {
+					if handlers.OnError != nil {
+						handlers.OnError(stopped.Exception)
+					}
+					executionError = fmt.Errorf(
+						"execution failed: %s - %s",
+						stopped.Exception.ExceptionType,
+						stopped.Exception.ExceptionMessage,
+					)
+				}
+
+				// Then call stopped handler.
+				if handlers.OnStopped != nil {
+					handlers.OnStopped(stopped)
+				}
+
+				return executionError
+
+			default:
+				slog.Warn("Unknown message type received", "type", msg.Type)
 			}
 
-			// Then call stopped handler
-			if handlers.OnStopped != nil {
-				handlers.OnStopped(stopped)
-			}
-
-			return executionError
-
-		default:
-			slog.Warn("Unknown message type received", "type", msg.Type)
+		case <-qi.Done():
+			return fmt.Errorf("queue item closed")
 		}
 	}
 }

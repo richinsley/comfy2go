@@ -206,15 +206,13 @@ func (c *ComfyClient) GetQueuedItem(prompt_id string) *QueueItem {
 }
 
 // OnWindowSocketMessage processes each message received from the websocket connection to ComfyUI.
-// The messages are parsed, and translated into PromptMessage structs and placed into the correct QueuedItem's message channel.
+// The messages are parsed and translated into PromptMessage structs and routed into the QueueItem.
 func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 	message := &WSStatusMessage{}
-	err := json.Unmarshal([]byte(msg), &message)
-	if err != nil {
-		slog.Error("Deserializing Status Message:", "error", err)
+	if err := json.Unmarshal([]byte(msg), &message); err != nil {
+		slog.Error("Deserializing Status Message", "error", err)
+		return
 	}
-
-	// fmt.Println(msg)
 
 	switch message.Type {
 	case "status":
@@ -223,221 +221,240 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string, qi *QueueItem) {
 			c.queuecount = s.Status.ExecInfo.QueueRemaining
 			c.callbacks.ClientQueueCountChanged(c, s.Status.ExecInfo.QueueRemaining)
 		}
+
 	case "execution_start":
 		s := message.Data.(*WSMessageDataExecutionStart)
-		// update lastProcessedPromptID to indicate we are processing a new prompt
+		// Update lastProcessedPromptID to indicate we are processing a new prompt.
 		c.lastProcessedPromptID = s.PromptID
-		if qi != nil {
-			if c.callbacks != nil && c.callbacks.QueuedItemStarted != nil {
-				c.callbacks.QueuedItemStarted(c, qi)
-			}
-			m := PromptMessage{
-				Type: "started",
-				Message: &PromptMessageStarted{
-					PromptID: qi.PromptID,
-				},
-			}
-			qi.Messages <- m
+		if qi == nil {
+			return
 		}
+		if c.callbacks != nil && c.callbacks.QueuedItemStarted != nil {
+			c.callbacks.QueuedItemStarted(c, qi)
+		}
+		qi.send(PromptMessage{
+			Type: "started",
+			Message: &PromptMessageStarted{
+				PromptID: qi.PromptID,
+			},
+		})
+
 	case "execution_cached":
-		// this is probably not usefull for us
+		// Intentionally ignored.
+
 	case "executing":
 		s := message.Data.(*WSMessageDataExecuting)
-		if qi != nil {
-			if s.Node == nil {
-				// final node was processed
-				m := PromptMessage{
-					Type: "stopped",
-					Message: &PromptMessageStopped{
-						QueueItem: qi,
-						Exception: nil,
-					},
-				}
-				// remove the Item from our Queue before sending the message
-				// no other messages will be sent to the channel after this
-				if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
-					c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonFinished)
-				}
-				delete(c.queueditems, qi.PromptID)
-				// qi.Close()
-				qi.Messages <- m
-			} else {
-				// Try to find the node in the workflow
-				// For compound IDs like "57:8", parse the first part
-				var node *graphapi.GraphNode
-				nodeIDStr := *s.Node
-				if nodeID, err := strconv.Atoi(nodeIDStr); err == nil {
-					// Simple integer ID
-					node = qi.Workflow.GetNodeById(nodeID)
-				} else if strings.Contains(nodeIDStr, ":") {
-					// Compound ID like "57:8" - try to get the instance node
-					parts := strings.Split(nodeIDStr, ":")
-					if instanceID, err := strconv.Atoi(parts[0]); err == nil {
-						node = qi.Workflow.GetNodeById(instanceID)
-					}
-				}
-
-				if node != nil {
-					m := PromptMessage{
-						Type: "executing",
-						Message: &PromptMessageExecuting{
-							NodeID: *s.Node,
-							Title:  node.DisplayName,
-						},
-					}
-					qi.Messages <- m
-				} else {
-					m := PromptMessage{
-						Type: "executing",
-						Message: &PromptMessageExecuting{
-							NodeID: *s.Node,
-							Title:  *s.Node,
-						},
-					}
-					qi.Messages <- m
-				}
-			}
+		if qi == nil {
+			return
 		}
-	case "progress":
-		s := message.Data.(*WSMessageDataProgress)
-		if qi != nil {
-			m := PromptMessage{
-				Type: "progress",
-				Message: &PromptMessageProgress{
-					Value: s.Value,
-					Max:   s.Max,
-				},
+		if s.Node == nil {
+			// Final node was processed.
+			if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
+				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonFinished)
 			}
-			qi.Messages <- m
-		}
-	case "executed":
-		s := message.Data.(*WSMessageDataExecuted)
-		if qi != nil {
-			// mdata := &PromptMessageData{
-			// 	NodeID: s.Node,
-			// 	Images: *s.Output["images"],
-			// }
-
-			// collect the data from the output
-			mdata := &PromptMessageData{
-				NodeID: s.Node,
-				Data:   make(map[string][]DataOutput),
-			}
-
-			for k, v := range s.Output {
-				mdata.Data[k] = *v
-			}
-
-			m := PromptMessage{
-				Type:    "data",
-				Message: mdata,
-			}
-			if c.callbacks != nil && c.callbacks.QueuedItemDataAvailable != nil {
-				c.callbacks.QueuedItemDataAvailable(c, qi, mdata)
-			}
-			qi.Messages <- m
-		}
-	case "execution_interrupted":
-		if qi != nil {
-			m := PromptMessage{
+			delete(c.queueditems, qi.PromptID)
+			qi.send(PromptMessage{
 				Type: "stopped",
 				Message: &PromptMessageStopped{
 					QueueItem: qi,
 					Exception: nil,
 				},
-			}
-			// remove the Item from our Queue before sending the message
-			// no other messages will be sent to the channel after this
-			if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
-				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonInterrupted)
-			}
-			delete(c.queueditems, qi.PromptID)
-			qi.Close()
-			qi.Messages <- m
+			})
+			// Release websocket resources for this item.
+			qi.CloseWebSocket()
+			return
 		}
+
+		// Try to find the node in the workflow.
+		// For compound IDs like "57:8", parse the first part.
+		var node *graphapi.GraphNode
+		nodeIDStr := *s.Node
+		if nodeID, err := strconv.Atoi(nodeIDStr); err == nil {
+			// Simple integer ID.
+			node = qi.Workflow.GetNodeById(nodeID)
+		} else if strings.Contains(nodeIDStr, ":") {
+			// Compound ID like "57:8" - try to get the instance node.
+			parts := strings.Split(nodeIDStr, ":")
+			if instanceID, err := strconv.Atoi(parts[0]); err == nil {
+				node = qi.Workflow.GetNodeById(instanceID)
+			}
+		}
+
+		title := *s.Node
+		if node != nil {
+			title = node.DisplayName
+		}
+		qi.send(PromptMessage{
+			Type: "executing",
+			Message: &PromptMessageExecuting{
+				NodeID: *s.Node,
+				Title:  title,
+			},
+		})
+
+	case "progress":
+		s := message.Data.(*WSMessageDataProgress)
+		if qi == nil {
+			return
+		}
+		qi.send(PromptMessage{
+			Type: "progress",
+			Message: &PromptMessageProgress{
+				Value: s.Value,
+				Max:   s.Max,
+			},
+		})
+
+	case "executed":
+		s := message.Data.(*WSMessageDataExecuted)
+		if qi == nil {
+			return
+		}
+		// Collect the data from the output.
+		mdata := &PromptMessageData{
+			NodeID: s.Node,
+			Data:   make(map[string][]DataOutput),
+		}
+		for k, v := range s.Output {
+			mdata.Data[k] = *v
+		}
+		if c.callbacks != nil && c.callbacks.QueuedItemDataAvailable != nil {
+			c.callbacks.QueuedItemDataAvailable(c, qi, mdata)
+		}
+		qi.send(PromptMessage{Type: "data", Message: mdata})
+
+	case "execution_interrupted":
+		if qi == nil {
+			return
+		}
+		if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
+			c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonInterrupted)
+		}
+		delete(c.queueditems, qi.PromptID)
+		qi.send(PromptMessage{
+			Type: "stopped",
+			Message: &PromptMessageStopped{
+				QueueItem: qi,
+				Exception: nil,
+			},
+		})
+		qi.CloseWebSocket()
+
 	case "execution_error":
 		s := message.Data.(*WSMessageExecutionError)
-		if qi != nil {
-			// Try to find the node in the workflow
-			var tnode *graphapi.GraphNode
-			if nodeID, err := strconv.Atoi(s.Node); err == nil {
-				tnode = qi.Workflow.GetNodeById(nodeID)
-			} else if strings.Contains(s.Node, ":") {
-				// Compound ID - try to get the instance node
-				parts := strings.Split(s.Node, ":")
-				if instanceID, err := strconv.Atoi(parts[0]); err == nil {
-					tnode = qi.Workflow.GetNodeById(instanceID)
-				}
-			}
-
-			nodeName := s.Node
-			if tnode != nil {
-				nodeName = tnode.Title
-			}
-
-			m := PromptMessage{
-				Type: "stopped",
-				Message: &PromptMessageStopped{
-					QueueItem: qi,
-					Exception: &PromptMessageStoppedException{
-						NodeID:           s.Node,
-						NodeType:         s.NodeType,
-						NodeName:         nodeName,
-						ExceptionMessage: s.ExceptionMessage,
-						ExceptionType:    s.ExceptionType,
-						Traceback:        s.Traceback,
-					},
-				},
-			}
-			// remove the Item from our Queue before sending the message
-			// no other messages will be sent to the channel after this
-			if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
-				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonError)
-			}
-			delete(c.queueditems, qi.PromptID)
-			qi.Close()
-			qi.Messages <- m
+		if qi == nil {
+			return
 		}
+
+		// Try to find the node in the workflow.
+		var tnode *graphapi.GraphNode
+		if nodeID, err := strconv.Atoi(s.Node); err == nil {
+			tnode = qi.Workflow.GetNodeById(nodeID)
+		} else if strings.Contains(s.Node, ":") {
+			// Compound ID - try to get the instance node.
+			parts := strings.Split(s.Node, ":")
+			if instanceID, err := strconv.Atoi(parts[0]); err == nil {
+				tnode = qi.Workflow.GetNodeById(instanceID)
+			}
+		}
+
+		nodeName := s.Node
+		if tnode != nil {
+			nodeName = tnode.Title
+		}
+
+		if c.callbacks != nil && c.callbacks.QueuedItemStopped != nil {
+			c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonError)
+		}
+		delete(c.queueditems, qi.PromptID)
+		qi.send(PromptMessage{
+			Type: "stopped",
+			Message: &PromptMessageStopped{
+				QueueItem: qi,
+				Exception: &PromptMessageStoppedException{
+					NodeID:           s.Node,
+					NodeType:         s.NodeType,
+					NodeName:         nodeName,
+					ExceptionMessage: s.ExceptionMessage,
+					ExceptionType:    s.ExceptionType,
+					Traceback:        s.Traceback,
+				},
+			},
+		})
+		qi.CloseWebSocket()
+
 	case "progress_state":
 		s := message.Data.(*WSMessageDataProgressState)
-		if qi != nil {
-			// Convert the map of node progress states to application-level format
-			nodes := make(map[string]NodeProgressInfo)
-			for nodeID, nodeState := range s.Nodes {
-				nodes[nodeID] = NodeProgressInfo{
-					Value:         nodeState.Value,
-					Max:           nodeState.Max,
-					State:         nodeState.State,
-					NodeID:        nodeState.NodeID,
-					DisplayNodeID: nodeState.DisplayNodeID,
-					ParentNodeID:  nodeState.ParentNodeID,
-					RealNodeID:    nodeState.RealNodeID,
-				}
-			}
-			m := PromptMessage{
-				Type: "progress_state",
-				Message: &PromptMessageProgressState{
-					PromptID: s.PromptID,
-					Nodes:    nodes,
-				},
-			}
-			qi.Messages <- m
+		if qi == nil {
+			return
 		}
+		// Convert the map of node progress states to application-level format.
+		nodes := make(map[string]NodeProgressInfo)
+		for nodeID, nodeState := range s.Nodes {
+			nodes[nodeID] = NodeProgressInfo{
+				Value:         nodeState.Value,
+				Max:           nodeState.Max,
+				State:         nodeState.State,
+				NodeID:        nodeState.NodeID,
+				DisplayNodeID: nodeState.DisplayNodeID,
+				ParentNodeID:  nodeState.ParentNodeID,
+				RealNodeID:    nodeState.RealNodeID,
+			}
+		}
+		qi.send(PromptMessage{
+			Type: "progress_state",
+			Message: &PromptMessageProgressState{
+				PromptID: s.PromptID,
+				Nodes:    nodes,
+			},
+		})
+
 	case "execution_success":
 		s := message.Data.(*WSMessageDataExecutionSuccess)
-		if qi != nil {
-			m := PromptMessage{
-				Type: "execution_success",
-				Message: &PromptMessageExecutionSuccess{
-					PromptID:  s.PromptID,
-					Timestamp: s.Timestamp,
-				},
-			}
-			qi.Messages <- m
+		if qi == nil {
+			return
 		}
+		qi.send(PromptMessage{
+			Type: "execution_success",
+			Message: &PromptMessageExecutionSuccess{
+				PromptID:  s.PromptID,
+				Timestamp: s.Timestamp,
+			},
+		})
+
 	case "crystools.monitor":
+		// Intentionally ignored.
+
 	default:
-		// Handle unknown data types or return a dedicated error here
-		slog.Warn("Unhandled message type: ", "type", message.Type)
+		slog.Warn("Unhandled message type", "type", message.Type)
 	}
+}
+
+// Close closes all websocket connections and cleans up resources
+func (c *ComfyClient) Close() error {
+	var lastErr error
+
+	// Close all queued items' websocket connections.
+	// Copy items first to avoid holding locks while closing resources.
+	items := make([]*QueueItem, 0, len(c.queueditems))
+	for _, item := range c.queueditems {
+		items = append(items, item)
+	}
+
+	for _, item := range items {
+		if item != nil {
+			item.Close()
+		}
+	}
+
+	// Close idle HTTP keep-alive connections (best effort).
+	if c.httpclient != nil {
+		c.httpclient.CloseIdleConnections()
+	}
+
+	// Clear the queue.
+	c.queueditems = make(map[string]*QueueItem)
+	c.initialized = false
+
+	return lastErr
 }

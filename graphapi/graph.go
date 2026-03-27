@@ -741,6 +741,14 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 		}
 		p.Nodes = expander.ToPromptNodes()
 	} else {
+		// Pre-compute bypass origin mappings for all bypassed nodes
+		bypassMap := make(map[int]map[int]*Link) // nodeID -> (outputSlot -> upstream Link)
+		for _, node := range t.NodesInExecutionOrder {
+			if node.Mode == NodeModeBypassed {
+				bypassMap[node.ID] = node.GetBypassOrigin()
+			}
+		}
+
 		// Use original logic for backward compatibility
 		for _, node := range t.NodesInExecutionOrder {
 			if node.IsVirtual() {
@@ -749,8 +757,8 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 				continue
 			}
 
-			if node.Mode == 2 {
-				// Don't serialize muted nodes
+			if node.Mode == NodeModeMuted || node.Mode == NodeModeBypassed {
+				// Don't serialize muted or bypassed nodes
 				continue
 			}
 
@@ -772,6 +780,8 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 				parent := node.GetNodeForInput(i)
 				if parent != nil {
 					link := t.GetLinkById(slot.Link)
+
+					// Traverse through virtual nodes (PrimitiveNode, Reroute, etc.)
 					for parent != nil && parent.IsVirtual() {
 						link = parent.GetInputLink(link.OriginSlot)
 						if link != nil {
@@ -781,7 +791,23 @@ func (t *Graph) GraphToPrompt(clientID string) (Prompt, error) {
 						}
 					}
 
-					if link != nil {
+					// Traverse through bypassed nodes: follow the bypass pass-through chain
+					for parent != nil && parent.Mode == NodeModeBypassed && link != nil {
+						origins := bypassMap[parent.ID]
+						if origins == nil {
+							link = nil
+							break
+						}
+						upstreamLink, ok := origins[link.OriginSlot]
+						if !ok || upstreamLink == nil {
+							link = nil
+							break
+						}
+						link = upstreamLink
+						parent = t.GetNodeById(link.OriginID)
+					}
+
+					if link != nil && parent != nil {
 						linfo := make([]interface{}, 2)
 						linfo[0] = strconv.Itoa(link.OriginID)
 						linfo[1] = link.OriginSlot
